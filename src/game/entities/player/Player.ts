@@ -1,35 +1,39 @@
-import { Vector3, type Scene, type ShadowGenerator } from "@babylonjs/core";
+import { MeshBuilder,Mesh, PhysicsAggregate, PhysicsMotionType, PhysicsShapeType, Vector3, type Scene, type ShadowGenerator } from "@babylonjs/core";
 import { Entity } from "../Entity";
 
 export class Player extends Entity
-{
+{   
+    transform! : Mesh;
+    capsuleAggregate: any;
+
     constructor(scene: Scene, shadowGenerator: ShadowGenerator)
     {
-        super(scene, shadowGenerator, "/models/soldierProtagonist.glb", 1, 1, "Player");
+        super("player",scene, shadowGenerator);
+
+        this.init();
     }
 
     async init()
-    {        
+    {   
+        this.mesh = MeshBuilder.CreateCapsule("player_mesh", { height: 2, radius: 0.5 }, this.scene);
+        this.mesh.position.y = 5;
+        /*
+        this.transform = MeshBuilder.CreateBox("player_transform", { height: 2, width: 1, depth: 1 }, this.scene);
+        this.transform.visibility = 0.2;
+        this.transform.position = new Vector3(this.mesh.position.x, this.mesh.position.y + 1, this.mesh.position.z);
+        */
+        this.capsuleAggregate = new PhysicsAggregate(this.mesh, PhysicsShapeType.BOX, { mass: 0.1, restitution:0}, this.scene);
+        this.capsuleAggregate.body.setMotionType(PhysicsMotionType.DYNAMIC);
     }
 
-    update(input: {forward: boolean, backward: boolean, left: boolean, right: boolean})
+    async fixedUpdate()
     {
-        if(!this.mesh || !this.aggregate) return;
 
-        const moveDir = new Vector3(0,0,0);
-        if(input.forward) moveDir.z += 1;
-        if(input.backward) moveDir.z -= 1;
-        if(input.left) moveDir.x -= 1;
-        if(input.right) moveDir.x += 1;
+    }
 
-        const currentVel = this.aggregate?.body.getLinearVelocity();
-        this.aggregate?.body.setLinearVelocity(new Vector3(moveDir.x * 5, currentVel ? currentVel.y : 0, moveDir.z * 5));
-        if (moveDir.x !== 0 || moveDir.z !== 0) 
-        {
-            const targetRotation = Math.atan2(moveDir.x, moveDir.z);
-            this.mesh.rotationQuaternion = null; // On repasse en mode rotation Euler
-            this.mesh.rotation.y = targetRotation;
-        }
+    update()
+    {
+        
     }
 
 }

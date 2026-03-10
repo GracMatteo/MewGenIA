@@ -9,37 +9,25 @@ export abstract class Entity
     protected modelPath : string;
     protected modelName : string;
 
-    constructor(scene : Scene, shadowGenerator: ShadowGenerator, modelPath : string, scale : number, mass : number, modelName : string)
+    constructor(modelName : string ,scene : Scene, shadowGenerator: ShadowGenerator, modelPath? : string, scale? : number, mass? : number )
     {
         this.shadowGenerator = shadowGenerator;
         this.scene = scene;
         this.modelName = modelName;
-        this.modelPath = modelPath;
+        this.modelPath = modelPath ? modelPath : `/models/${modelName}.glb`;
 
     }
 
     async load()
     {
-        const container = await LoadAssetContainerAsync(this.modelPath, this.scene);
-        container.addAllToScene();
-        this.mesh = container.meshes[0];
-        this.mesh.scaling.setAll(1);
-        this.mesh.position.y = 5;
-
-        container.meshes.forEach(m => {
-            m.receiveShadows = true;
-            this.shadowGenerator.addShadowCaster(m);
-        });
-
-        this.setupPhysics();
-    }
-
-    protected setupPhysics()
-    {
-        if(!this.mesh) return;
-        this.aggregate = new PhysicsAggregate(this.mesh, PhysicsShapeType.CAPSULE, { mass: 1, restitution: 0.1, friction: 0.5 }, this.scene);
         
     }
+    
+    abstract init() : Promise<void>;
 
     abstract update(input?: any) : void;
+
+    abstract fixedUpdate(input?: any) : void;
+
+   
 }
