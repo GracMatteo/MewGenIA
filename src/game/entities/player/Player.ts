@@ -1,14 +1,15 @@
 import { MeshBuilder,Mesh, PhysicsAggregate, PhysicsMotionType, PhysicsShapeType, Vector3, type Scene, type ShadowGenerator, ActionManager, ExecuteCodeAction, Color3 } from "@babylonjs/core";
 import { Entity } from "../Entity";
+import { AdvancedDynamicTexture, Control, Rectangle, TextBlock } from "@babylonjs/gui";
 
 export class Player extends Entity
 {   
     transform! : Mesh;
     capsuleAggregate: any;
-
-    constructor(scene: Scene, shadowGenerator: ShadowGenerator)
+    
+    constructor(scene: Scene, shadowGenerator: ShadowGenerator, uiTexture: AdvancedDynamicTexture)
     {
-        super("player",scene, shadowGenerator);
+        super("player",scene, shadowGenerator,uiTexture);
 
         this.init();
     }
@@ -26,13 +27,13 @@ export class Player extends Entity
         this.capsuleAggregate = new PhysicsAggregate(this.mesh, PhysicsShapeType.BOX, { mass: 0.1, restitution:0}, this.scene);
         this.capsuleAggregate.body.setMotionType(PhysicsMotionType.DYNAMIC);
 
-        this.hoverInfo = {
+        this.info = {
             name : "Player",
             description : "This is the player character."
         }
 
         this.onHoverHighlight();
-        this.onHoverInfo();
+        this.showInfo();
     }
 
     async fixedUpdate()
@@ -40,19 +41,16 @@ export class Player extends Entity
 
     }
 
-    onHoverInfo()
+    showInfo()
     {
         if(!this.mesh) console.warn("Mesh not loaded yet");
         this.mesh!.actionManager!.registerAction(
-            new ExecuteCodeAction(ActionManager.OnPointerOverTrigger, () => {
-                //this.displayHoverInfo();
-                console.log(this.hoverInfo);
+            new ExecuteCodeAction(ActionManager.OnLeftPickTrigger, () => {
+                this.displayInfo();
+                //console.log(this.info);
             }));
     }
     
-    createPlayerGUI(){
-        
-    }
 
     update()
     {

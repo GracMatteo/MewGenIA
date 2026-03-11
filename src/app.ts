@@ -1,8 +1,9 @@
 import "@babylonjs/core/Debug/debugLayer";
 import "@babylonjs/inspector";
 import HavokPhysics from "@babylonjs/havok";
-import { DirectionalLight, Engine, FreeCamera, HavokPlugin, MeshBuilder, PhysicsAggregate, PhysicsMotionType, PhysicsShapeType, Scene, ShadowGenerator, Vector3 } from "@babylonjs/core";
+import { DirectionalLight, Engine, FreeCamera, HavokPlugin, MeshBuilder, PhysicsAggregate, PhysicsMotionType, PhysicsShapeType, Scene, ShadowGenerator, Texture, Vector3 } from "@babylonjs/core";
 import { Player } from "./game/entities/player/Player";
+import { AdvancedDynamicTexture } from "@babylonjs/gui";
 
 class App {
     
@@ -16,8 +17,9 @@ class App {
     //camera
     freeCamera!: FreeCamera;
 
-    //GUI
-    
+    //UI
+    ui! : AdvancedDynamicTexture;
+
     inputStates : {};
 
     constructor(){
@@ -63,6 +65,9 @@ class App {
         const hk = new HavokPlugin(true, this.havokInstance);
         scene.enablePhysics(new Vector3(0, -9.81, 0), hk);
 
+        //ui
+        this.ui = AdvancedDynamicTexture.CreateFullscreenUI("UI", true, scene,Texture.BILINEAR_SAMPLINGMODE,true);
+
         //camera
         this.freeCamera = new FreeCamera("freeCamera", new Vector3(0, 10, -20), scene);
         this.freeCamera.setTarget(Vector3.Zero());
@@ -76,18 +81,18 @@ class App {
         this.shadowGenerator = new ShadowGenerator(1024, light);
         
         //ground 
-        this.createGround(scene);
+        this.createGround();
         this.createPlayer();
         return scene;
     }
 
-    createGround(scene : Scene){
+    createGround(){
         //groundOptions
         const groundOptions = { width : 200, height : 200 , receiveShadhows : true};
 
         const ground = MeshBuilder.CreateGround("ground",groundOptions,this.scene)
         
-        const groundAggregate = new PhysicsAggregate(ground, PhysicsShapeType.BOX, { mass: 0, friction: 0.7, restitution: 0.2 },scene);
+        const groundAggregate = new PhysicsAggregate(ground, PhysicsShapeType.BOX, { mass: 0, friction: 0.7, restitution: 0.2 },this.scene);
         groundAggregate.body.setMotionType(PhysicsMotionType.STATIC);
         console.log(groundAggregate)
         
@@ -96,7 +101,7 @@ class App {
     }
 
     async createPlayer(){
-        const player = new Player(this.scene, this.shadowGenerator);
+        const player = new Player(this.scene, this.shadowGenerator,this.ui);
     }
 
     private async getInitializedHavok() {
