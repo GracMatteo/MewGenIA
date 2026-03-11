@@ -1,4 +1,5 @@
 import { AbstractMesh, LoadAssetContainerAsync, PhysicsAggregate, PhysicsShapeType, type Scene, type ShadowGenerator } from "@babylonjs/core";
+import type { EntityInfo } from "./EntityInfo";
 
 export abstract class Entity
 {
@@ -9,12 +10,15 @@ export abstract class Entity
     protected modelPath : string;
     protected modelName : string;
 
+    protected hoverInfo! : EntityInfo;
+
     constructor(modelName : string ,scene : Scene, shadowGenerator: ShadowGenerator, modelPath? : string, scale? : number, mass? : number )
     {
         this.shadowGenerator = shadowGenerator;
         this.scene = scene;
         this.modelName = modelName;
         this.modelPath = modelPath ? modelPath : `/models/${modelName}.glb`;
+
 
     }
 
@@ -28,6 +32,8 @@ export abstract class Entity
     abstract update(input?: any) : void;
 
     abstract fixedUpdate(input?: any) : void;
+
+    abstract onHoverInfo() : void;
 
    
 }

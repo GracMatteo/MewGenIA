@@ -1,4 +1,4 @@
-import { MeshBuilder,Mesh, PhysicsAggregate, PhysicsMotionType, PhysicsShapeType, Vector3, type Scene, type ShadowGenerator } from "@babylonjs/core";
+import { MeshBuilder,Mesh, PhysicsAggregate, PhysicsMotionType, PhysicsShapeType, Vector3, type Scene, type ShadowGenerator, ActionManager, ExecuteCodeAction } from "@babylonjs/core";
 import { Entity } from "../Entity";
 
 export class Player extends Entity
@@ -24,11 +24,29 @@ export class Player extends Entity
         */
         this.capsuleAggregate = new PhysicsAggregate(this.mesh, PhysicsShapeType.BOX, { mass: 0.1, restitution:0}, this.scene);
         this.capsuleAggregate.body.setMotionType(PhysicsMotionType.DYNAMIC);
+
+        this.hoverInfo = {
+            name : "Player",
+            description : "This is the player character."
+        }
+
+        this.onHoverInfo();
     }
 
     async fixedUpdate()
     {
 
+    }
+
+    onHoverInfo()
+    {   
+        if(!this.mesh) console.warn("Mesh not loaded yet");
+        this.mesh!.actionManager = new ActionManager(this.scene);
+        this.mesh!.actionManager.registerAction(
+            new ExecuteCodeAction(ActionManager.OnPointerOverTrigger, () => {
+                console.log(this.hoverInfo);
+            })
+        );
     }
 
     update()
