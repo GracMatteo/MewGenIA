@@ -1,4 +1,4 @@
-import { MeshBuilder,Mesh, PhysicsAggregate, PhysicsMotionType, PhysicsShapeType, Vector3, type Scene, type ShadowGenerator, ActionManager, ExecuteCodeAction } from "@babylonjs/core";
+import { MeshBuilder,Mesh, PhysicsAggregate, PhysicsMotionType, PhysicsShapeType, Vector3, type Scene, type ShadowGenerator, ActionManager, ExecuteCodeAction, Color3 } from "@babylonjs/core";
 import { Entity } from "../Entity";
 
 export class Player extends Entity
@@ -17,6 +17,7 @@ export class Player extends Entity
     {   
         this.mesh = MeshBuilder.CreateCapsule("player_mesh", { height: 2, radius: 0.5 }, this.scene);
         this.mesh.position.y = 5;
+        
         /*
         this.transform = MeshBuilder.CreateBox("player_transform", { height: 2, width: 1, depth: 1 }, this.scene);
         this.transform.visibility = 0.2;
@@ -44,9 +45,19 @@ export class Player extends Entity
         this.mesh!.actionManager = new ActionManager(this.scene);
         this.mesh!.actionManager.registerAction(
             new ExecuteCodeAction(ActionManager.OnPointerOverTrigger, () => {
+                this.mesh!.renderOutline = true;
+                this.mesh!.outlineColor = new Color3(0.8,0.8, 0.8);
                 console.log(this.hoverInfo);
-            })
-        );
+            }));
+
+        this.mesh!.actionManager.registerAction(
+            new ExecuteCodeAction(ActionManager.OnPointerOutTrigger, () => {
+                this.mesh!.renderOutline = false;
+        }));
+    }
+
+    createPlayerGUI(){
+        
     }
 
     update()
