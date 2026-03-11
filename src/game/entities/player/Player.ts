@@ -31,6 +31,7 @@ export class Player extends Entity
             description : "This is the player character."
         }
 
+        this.onHoverHighlight();
         this.onHoverInfo();
     }
 
@@ -40,22 +41,15 @@ export class Player extends Entity
     }
 
     onHoverInfo()
-    {   
+    {
         if(!this.mesh) console.warn("Mesh not loaded yet");
-        this.mesh!.actionManager = new ActionManager(this.scene);
-        this.mesh!.actionManager.registerAction(
+        this.mesh!.actionManager!.registerAction(
             new ExecuteCodeAction(ActionManager.OnPointerOverTrigger, () => {
-                this.mesh!.renderOutline = true;
-                this.mesh!.outlineColor = new Color3(0.8,0.8, 0.8);
+                //this.displayHoverInfo();
                 console.log(this.hoverInfo);
             }));
-
-        this.mesh!.actionManager.registerAction(
-            new ExecuteCodeAction(ActionManager.OnPointerOutTrigger, () => {
-                this.mesh!.renderOutline = false;
-        }));
     }
-
+    
     createPlayerGUI(){
         
     }

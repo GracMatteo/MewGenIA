@@ -1,4 +1,4 @@
-import { AbstractMesh, LoadAssetContainerAsync, PhysicsAggregate, PhysicsShapeType, type Scene, type ShadowGenerator } from "@babylonjs/core";
+import { AbstractMesh, ActionManager, Color3, ExecuteCodeAction, LoadAssetContainerAsync, PhysicsAggregate, PhysicsShapeType, type Scene, type ShadowGenerator } from "@babylonjs/core";
 import type { EntityInfo } from "./EntityInfo";
 
 export abstract class Entity
@@ -19,19 +19,38 @@ export abstract class Entity
         this.modelName = modelName;
         this.modelPath = modelPath ? modelPath : `/models/${modelName}.glb`;
 
-
+    
     }
 
     async load()
     {
         
     }
+
+
     
     abstract init() : Promise<void>;
 
     abstract update(input?: any) : void;
 
     abstract fixedUpdate(input?: any) : void;
+
+    //hover entity logique
+    onHoverHighlight(){
+        if(!this.mesh) console.warn("Mesh not loaded yet");
+            this.mesh!.actionManager = new ActionManager(this.scene);
+            this.mesh!.actionManager.registerAction(
+                new ExecuteCodeAction(ActionManager.OnPointerOverTrigger, () => {
+                    this.mesh!.renderOutline = true;
+                    this.mesh!.outlineColor = new Color3(0.8,0.8, 0.8); //gris clair
+                    //console.log(this.hoverInfo);
+                }));
+        
+            this.mesh!.actionManager.registerAction(
+                new ExecuteCodeAction(ActionManager.OnPointerOutTrigger, () => {
+                this.mesh!.renderOutline = false;
+        }));
+    }
 
     abstract onHoverInfo() : void;
 

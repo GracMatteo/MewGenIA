@@ -16,6 +16,8 @@ class App {
     //camera
     freeCamera!: FreeCamera;
 
+    //GUI
+    
     inputStates : {};
 
     constructor(){
