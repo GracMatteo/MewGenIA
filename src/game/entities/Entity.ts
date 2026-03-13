@@ -106,7 +106,4 @@ export abstract class Entity
         }
     }  
 
-    abstract onHoverInfo() : void;
-
-   
 }

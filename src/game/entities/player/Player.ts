@@ -24,7 +24,7 @@ export class Player extends Entity
         this.transform.visibility = 0.2;
         this.transform.position = new Vector3(this.mesh.position.x, this.mesh.position.y + 1, this.mesh.position.z);
         */
-        this.capsuleAggregate = new PhysicsAggregate(this.mesh, PhysicsShapeType.BOX, { mass: 0.1, restitution:0}, this.scene);
+        this.capsuleAggregate = new PhysicsAggregate(this.mesh, PhysicsShapeType.CAPSULE, { mass: 0.1, restitution:0}, this.scene);
         this.capsuleAggregate.body.setMotionType(PhysicsMotionType.DYNAMIC);
 
         this.info = {

@@ -94,7 +94,7 @@ class App {
         
         const groundAggregate = new PhysicsAggregate(ground, PhysicsShapeType.BOX, { mass: 0, friction: 0.7, restitution: 0.2 },this.scene);
         groundAggregate.body.setMotionType(PhysicsMotionType.STATIC);
-        console.log(groundAggregate)
+        //console.log(groundAggregate)
         
 
         return ground;
