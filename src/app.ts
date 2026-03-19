@@ -1,127 +1,75 @@
-import "@babylonjs/core/Debug/debugLayer";
-import "@babylonjs/inspector";
+import { Engine, Scene } from "@babylonjs/core";
 import HavokPhysics from "@babylonjs/havok";
-import { DirectionalLight, Engine, FreeCamera, HavokPlugin, MeshBuilder, PhysicsAggregate, PhysicsMotionType, PhysicsShapeType, Scene, ShadowGenerator, Texture, Vector3 } from "@babylonjs/core";
-import { Player } from "./game/entities/player/Player";
-import { AdvancedDynamicTexture } from "@babylonjs/gui";
+import { MainMenu } from "./game/Scene/MainMenu";
+import { GameScene } from "./game/Scene/Game";
 
 class App {
-    
-    canvas : HTMLCanvasElement;
-    engine: Engine;
-    havokInstance: any;
-    scene!: Scene;
+    private _canvas: HTMLCanvasElement;
+    private _engine: Engine;
+    private _scene!: Scene;
+    private _havokInstance: any;
 
-    shadowGenerator!: ShadowGenerator;
+    constructor() {
+        this._canvas = document.getElementById("renderCanvas") as HTMLCanvasElement;
+        this._engine = new Engine(this._canvas, true);
 
-    //camera
-    freeCamera!: FreeCamera;
-
-    //UI
-    ui! : AdvancedDynamicTexture;
-
-    inputStates : {};
-
-    constructor(){
-        this.canvas = document.getElementById("renderCanvas") as HTMLCanvasElement;
-
-        this.inputStates = {};
-
-        this.engine = new Engine(this.canvas, true);
+        // Lancement du cycle
+        this._init();
     }
 
-    async start(){
-        await this.initGame();
-        this.gameLoop();
-    }
-
-    async initGame(){
-        this.havokInstance = await this.getInitializedHavok();
-        
-        //create the scene
-        this.scene = this.createScene();
-
-    }
-
-    gameLoop(){
-        this.engine.runRenderLoop(() => {
-            this.scene.render();
+    private async _init() {
+        // Initialiser Havok une seule fois
+        this._havokInstance = await HavokPhysics({
+            locateFile: () => "HavokPhysics.wasm"
         });
+
+        // Lancer la boucle de rendu globale
+        this._engine.runRenderLoop(() => {
+            if (this._scene) {
+                this._scene.render();
+            }
+        });
+
+        this._goToMainMenu();
+
+        window.addEventListener("resize", () => this._engine.resize());
     }
 
-    endGame(){
+    private _goToMainMenu() {
+        this._scene?.dispose(); // Nettoie la scène actuelle si elle existe
         
+        const menu = new MainMenu(this._engine);
+        this._scene = menu.scene;
+
+        menu.onPlayPressed = () => {
+            this._goToGame();
+        };
     }
-    
-    createScene() : Scene {
-        const scene = new Scene(this.engine);
-        //Debug layer
+
+    private _goToGame() {
+        this._engine.displayLoadingUI();
+        
+        this._scene?.dispose();
+        const game = new GameScene(this._engine, this._havokInstance);
+        this._scene = game.scene;
+        this._initDebug(this._scene);
+        this._engine.hideLoadingUI();
+    }
+
+    private _initDebug(scene: Scene): void {
         window.addEventListener("keydown", (event) => {
-            if (event.key === "i") {
-                ShowInspector(scene);
+            // Ctrl + Shift + I (ou juste 'i' selon ta préférence)
+            if (event.key === "i") { 
+                if (scene.debugLayer.isVisible()) {
+                    scene.debugLayer.hide();
+                } else {
+                    scene.debugLayer.show({
+                        embedMode: true, // L'affiche dans le canvas au lieu d'une popup
+                    });
+                }
             }
         });
-        //havok physics plugin
-        const hk = new HavokPlugin(true, this.havokInstance);
-        scene.enablePhysics(new Vector3(0, -9.81, 0), hk);
-
-        //ui
-        this.ui = AdvancedDynamicTexture.CreateFullscreenUI("UI", true, scene,Texture.BILINEAR_SAMPLINGMODE,true);
-
-        //camera
-        this.freeCamera = new FreeCamera("freeCamera", new Vector3(0, 10, -20), scene);
-        this.freeCamera.setTarget(Vector3.Zero());
-        this.freeCamera.attachControl(this.canvas, true);
-
-        //light
-        let light: DirectionalLight = new DirectionalLight("light", new Vector3(-1, -1, -1), scene);
-        light.intensity = 0.7;
-
-        //shadow generator
-        this.shadowGenerator = new ShadowGenerator(1024, light);
-        
-        //ground 
-        this.createGround();
-        this.createPlayer();
-        return scene;
-    }
-
-    createGround(){
-        //groundOptions
-        const groundOptions = { width : 200, height : 200 , receiveShadhows : true};
-
-        const ground = MeshBuilder.CreateGround("ground",groundOptions,this.scene)
-        
-        const groundAggregate = new PhysicsAggregate(ground, PhysicsShapeType.BOX, { mass: 0, friction: 0.7, restitution: 0.2 },this.scene);
-        groundAggregate.body.setMotionType(PhysicsMotionType.STATIC);
-        //console.log(groundAggregate)
-        
-
-        return ground;
-    }
-
-    async createPlayer(){
-        const player = new Player(this.scene, this.shadowGenerator,this.ui);
-    }
-
-    private async getInitializedHavok() {
-        // locates the wasm file copied during build process
-        const havok = await HavokPhysics({
-            locateFile: (file) => {
-                return "HavokPhysics.wasm"
-            }
-        });
-        return havok;
     }
 }
 
-function ShowInspector(scene: Scene) {
-    scene.debugLayer.show({
-        embedMode: true,
-    });
-}
-
-
-
-const gameEngine = new App();
-gameEngine.start();
+new App();
