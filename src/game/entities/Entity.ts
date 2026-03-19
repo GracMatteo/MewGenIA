@@ -4,7 +4,7 @@ import { Control, Rectangle, TextBlock, type AdvancedDynamicTexture } from "@bab
 
 export abstract class Entity
 {
-    protected mesh : AbstractMesh | undefined;
+    mesh : AbstractMesh | undefined;
     protected aggregate : PhysicsAggregate | undefined;
     protected shadowGenerator : ShadowGenerator;
     protected scene : Scene;
