@@ -59,7 +59,7 @@ class App {
     private _initDebug(scene: Scene): void {
         window.addEventListener("keydown", (event) => {
             // Ctrl + Shift + I (ou juste 'i' selon ta préférence)
-            if (event.key === "i") { 
+            if (event.key === "x") { 
                 if (scene.debugLayer.isVisible()) {
                     scene.debugLayer.hide();
                 } else {

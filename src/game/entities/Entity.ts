@@ -1,4 +1,4 @@
-import { AbstractMesh, ActionManager, Color3, ExecuteCodeAction, LoadAssetContainerAsync, PhysicsAggregate, PhysicsShapeType, type Scene, type ShadowGenerator } from "@babylonjs/core";
+import { AbstractMesh, ActionManager, Color3, ExecuteCodeAction, PhysicsAggregate, type Scene, type ShadowGenerator } from "@babylonjs/core";
 import type { EntityInfo } from "./EntityInfo";
 import { Control, Rectangle, TextBlock, type AdvancedDynamicTexture } from "@babylonjs/gui";
 

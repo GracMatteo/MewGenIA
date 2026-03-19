@@ -1,17 +1,23 @@
-import { MeshBuilder,Mesh, PhysicsAggregate, PhysicsMotionType, PhysicsShapeType, Vector3, type Scene, type ShadowGenerator, ActionManager, ExecuteCodeAction, Color3 } from "@babylonjs/core";
+import { MeshBuilder,Mesh, PhysicsAggregate, PhysicsMotionType, PhysicsShapeType, type Scene, type ShadowGenerator, ActionManager, ExecuteCodeAction } from "@babylonjs/core";
 import { Entity } from "../Entity";
-import { AdvancedDynamicTexture, Control, Rectangle, TextBlock } from "@babylonjs/gui";
+import { AdvancedDynamicTexture } from "@babylonjs/gui";
+import { Action, type InputManager } from "../../InputManager";
 
 export class Player extends Entity
 {   
     transform! : Mesh;
     capsuleAggregate: any;
+    inputs: InputManager;
     
-    constructor(scene: Scene, shadowGenerator: ShadowGenerator, uiTexture: AdvancedDynamicTexture)
+    constructor(scene: Scene,inputManager: InputManager,shadowGenerator: ShadowGenerator, uiTexture: AdvancedDynamicTexture)
     {
         super("player",scene, shadowGenerator,uiTexture);
-
+        this.inputs = inputManager;
         this.init();
+
+        this.scene.onBeforeRenderObservable.add(() => {
+            this._handleInputs();
+        });
     }
 
     async init()
@@ -51,6 +57,33 @@ export class Player extends Entity
             }));
     }
     
+    private _handleInputs()
+    {
+        if (this.inputs.isActionActive(Action.ZOOM_IN)) 
+        {
+            console.log("Zooming in");
+        }
+        if (this.inputs.isActionActive(Action.ZOOM_OUT))
+        {
+            console.log("Zooming out");
+        }
+        if (this.inputs.isActionActive(Action.MENU))
+        {
+            console.log("Menu opened");
+        }
+        if (this.inputs.isActionActive(Action.INVENTORY))
+        {
+            console.log("Inventory opened");
+        }
+        if (this.inputs.isActionActive(Action.INTERACT))
+        {
+            console.log("Interacting");
+        }
+        if (this.inputs.isActionActive(Action.MOVE))
+        {
+            console.log("Moving");
+        }
+    }
 
     update()
     {

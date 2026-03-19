@@ -16,7 +16,7 @@ import { AdvancedDynamicTexture } from "@babylonjs/gui";
 import { Player } from "../entities/player/Player";
 import "@babylonjs/core/Debug/debugLayer"; // Ajoute la couche de debug à la classe Scene
 import "@babylonjs/inspector";
-//import { InputManager } from "../InputManager";
+import {InputManager } from "../InputManager";
 
 export class GameScene {
     public scene: Scene;
@@ -24,7 +24,7 @@ export class GameScene {
     private _havokInstance: any;
     private _ui: AdvancedDynamicTexture;
     private _shadowGenerator!: ShadowGenerator;
-    //private _inputManager: InputManager;
+    private _inputManager: InputManager;
 
     constructor(engine: Engine, havokInstance: any) {
         this._engine = engine;
@@ -34,13 +34,14 @@ export class GameScene {
         // 1. Physique
         const hk = new HavokPlugin(true, this._havokInstance);
         this.scene.enablePhysics(new Vector3(0, -9.81, 0), hk);
-
-        const camera = new FreeCamera("menuCam", new Vector3(0, 5, -15), this.scene);
+        this.scene.collisionsEnabled = true;
+        const camera = new FreeCamera("gameCam", new Vector3(0, 5, -15), this.scene);
         camera.setTarget(Vector3.Zero());
         camera.attachControl(this._engine.getRenderingCanvas(), true);
+        camera.checkCollisions = true;
 
         // 2. Inputs & UI
-        // this._inputManager = new InputManager(this.scene);
+        this._inputManager = new InputManager(this.scene);
         this._ui = AdvancedDynamicTexture.CreateFullscreenUI("GameUI", true, this.scene, Texture.BILINEAR_SAMPLINGMODE, true);
 
         // 3. Environnement
@@ -73,6 +74,8 @@ export class GameScene {
 
     private async _createPlayer(): Promise<void> {
         // Ton ancienne logique de création du joueur
-        new Player(this.scene, this._shadowGenerator, this._ui);
+        new Player(this.scene,this._inputManager, this._shadowGenerator, this._ui);
     }
+
+
 }

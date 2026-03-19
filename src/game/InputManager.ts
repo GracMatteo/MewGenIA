@@ -1,11 +1,12 @@
-import { KeyboardEventTypes, Observer, type KeyboardInfo, type Scene } from "@babylonjs/core";
+import { KeyboardEventTypes, Observer, PointerEventTypes, type KeyboardInfo, type Scene } from "@babylonjs/core";
 
 export const Action = {
     ZOOM_IN: "ZOOM_IN",
     ZOOM_OUT: "ZOOM_OUT",
     MENU: "MENU",
     INVENTORY: "INVENTORY",
-    INTERACT: "INTERACT"
+    INTERACT: "INTERACT",
+    MOVE: "MOVE"
 } as const;
 
 export type Action = typeof Action[keyof typeof Action];
@@ -19,7 +20,8 @@ export class InputManager {
         [Action.ZOOM_OUT]: ["KeyS", "ArrowDown"],
         [Action.MENU]: ["Escape"],
         [Action.INVENTORY]: ["KeyI", "KeyE"],
-        [Action.INTERACT]: ["Space", "Enter"]
+        [Action.INTERACT]: ["Space", "Enter"],
+        [Action.MOVE]: ["mouse2"] // Exemple pour une action de mouvement
     };
 
     constructor(scene: Scene) {
@@ -39,6 +41,18 @@ export class InputManager {
                 case KeyboardEventTypes.KEYUP:
                     this._inputMap[code] = false;
                     break;
+            }
+        });
+
+        this._scene.onPointerObservable.add((pointerInfo) => {
+            const mouseCode = `mouse${pointerInfo.event.button}`;
+            if (pointerInfo.type === PointerEventTypes.POINTERDOWN) 
+            {
+                this._inputMap[mouseCode] = true;
+            } 
+            else if (pointerInfo.type === PointerEventTypes.POINTERUP) 
+            {
+                this._inputMap[mouseCode] = false;    
             }
         });
     }
