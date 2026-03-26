@@ -4,7 +4,7 @@ import { Control, Rectangle, TextBlock, type AdvancedDynamicTexture } from "@bab
 
 export abstract class Entity
 {
-    protected mesh : AbstractMesh | undefined;
+    public mesh : AbstractMesh | undefined;
     protected visualMeshes: AbstractMesh[] = [];
     protected aggregate : PhysicsAggregate | undefined;
     protected shadowGenerator : ShadowGenerator;
@@ -40,18 +40,36 @@ export abstract class Entity
 
     abstract fixedUpdate(input?: any) : void;
 
-onHoverHighlight() {
-    if (!this.mesh) {
-        console.warn("Mesh not loaded yet");
-        return;
-    }
+    //hover entity logique
+    onHoverHighlight() {
+        if (this.visualMeshes.length === 0) {
+            console.warn("Visual meshes not loaded yet");
+            return;
+        }
 
-    if (!this.mesh.actionManager) {
-        this.mesh.actionManager = new ActionManager(this.scene);
-    }
+        if(!this.mesh) console.warn("Mesh not loaded yet");
+        this.mesh!.actionManager = new ActionManager(this.scene);
+        this.mesh!.actionManager.registerAction(
+            new ExecuteCodeAction(ActionManager.OnPointerOverTrigger, () => {
+                this.mesh!.renderOutline = true;
+                this.mesh!.outlineColor = new Color3(0.8,0.8, 0.8); //gris clair
+                this.displayInfo(); 
+        }));
+        
+        this.mesh!.actionManager.registerAction(
+            new ExecuteCodeAction(ActionManager.OnPointerOutTrigger, () => {
+            this.mesh!.renderOutline = false;
+            if(this.hoverUIPanel){
+                this.hoverUIPanel.dispose();
+            }
+                
+        }));
+    
+
+
 
     // Hover sur le collider -> outline sur les meshes visuels
-    this.mesh.actionManager.registerAction(
+    this.mesh!.actionManager.registerAction(
         new ExecuteCodeAction(ActionManager.OnPointerOverTrigger, () => {
             this.visualMeshes.forEach(m => {
                 m.renderOutline = true;
@@ -60,7 +78,7 @@ onHoverHighlight() {
         })
     );
 
-    this.mesh.actionManager.registerAction(
+    this.mesh!.actionManager.registerAction(
         new ExecuteCodeAction(ActionManager.OnPointerOutTrigger, () => {
             this.visualMeshes.forEach(m => {
                 m.renderOutline = false;
@@ -69,8 +87,7 @@ onHoverHighlight() {
                 this.hoverUIPanel.dispose();
             }
         })
-    );
-}
+    );}
 
     //affiche les infos de l'entité dans une UI
     displayInfo()
@@ -124,4 +141,4 @@ onHoverHighlight() {
         }
     }  
 
-}
+}   

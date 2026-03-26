@@ -44,8 +44,8 @@ export class Player extends Entity
             this.visualMeshes[0].position.y -= 1;
         });
 
-        this.capsuleAggregate = new PhysicsAggregate(this.mesh, PhysicsShapeType.CAPSULE, { mass: 0.1, restitution: 0 }, this.scene);
-        this.capsuleAggregate.body.setMotionType(PhysicsMotionType.DYNAMIC);
+        //this.capsuleAggregate = new PhysicsAggregate(this.mesh, PhysicsShapeType.CAPSULE, { mass: 0.1, restitution: 0 }, this.scene);
+        //this.capsuleAggregate.body.setMotionType(PhysicsMotionType.DYNAMIC);
 
         this.info = {
             name: "Player",
@@ -95,6 +95,11 @@ export class Player extends Entity
         {
             console.log("Moving");
         }
+        if (this.inputs.isActionActive(Action.STOPNAV))
+        {
+            console.log("Stopping navigation");
+            this.disselected();
+        }
     }
 
     update()
@@ -113,6 +118,13 @@ export class Player extends Entity
                 console.log("Player selected");
             })
         );
+    }
+
+    disselected(){
+        if (this.isSelected) {
+            this.isSelected = false;
+            console.log("Joueur désélectionné (Touche Echap)");
+        }       
     }
 
 }
