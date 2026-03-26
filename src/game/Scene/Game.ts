@@ -17,6 +17,8 @@ import { Player } from "../entities/player/Player";
 import "@babylonjs/core/Debug/debugLayer"; // Ajoute la couche de debug à la classe Scene
 import "@babylonjs/inspector";
 import {InputManager } from "../InputManager";
+import { AISoldier } from "../entities/enemies/AISoldier";
+import { AssetManager } from "../AssetManager";
 
 export class GameScene {
     public scene: Scene;
@@ -43,14 +45,15 @@ export class GameScene {
         // 2. Inputs & UI
         this._inputManager = new InputManager(this.scene);
         this._ui = AdvancedDynamicTexture.CreateFullscreenUI("GameUI", true, this.scene, Texture.BILINEAR_SAMPLINGMODE, true);
-
         // 3. Environnement
         this._setupLights();
         this._createGround();
         
         // 4. Entités
         this._createPlayer();
+        this._createEnemy();
     }
+
 
     private _setupLights(): void {
         const light = new DirectionalLight("dirLight", new Vector3(-1, -2, -1), this.scene);
@@ -75,6 +78,10 @@ export class GameScene {
     private async _createPlayer(): Promise<void> {
         // Ton ancienne logique de création du joueur
         new Player(this.scene,this._inputManager, this._shadowGenerator, this._ui);
+    }
+
+    private async _createEnemy(): Promise<void> {
+        new AISoldier(this.scene, this._shadowGenerator, this._ui);
     }
 
 

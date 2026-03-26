@@ -40,40 +40,37 @@ export abstract class Entity
 
     abstract fixedUpdate(input?: any) : void;
 
-    //hover entity logique
-    onHoverHighlight() 
-    {
-        if (this.visualMeshes.length === 0) {
-            console.warn("Visual meshes not loaded yet");
-            return;
-        }
-
-        // Appliquer le hover sur chaque mesh visuel
-        this.visualMeshes.forEach(mesh => {
-            mesh.actionManager = new ActionManager(this.scene);
-
-            mesh.actionManager.registerAction(
-                new ExecuteCodeAction(ActionManager.OnPointerOverTrigger, () => {
-                    // Outline sur tous les meshes visuels
-                    this.visualMeshes.forEach(m => {
-                        m.renderOutline = true;
-                        m.outlineColor = new Color3(0.8, 0.8, 0.8);
-                    });
-                })
-            );
-
-            mesh.actionManager.registerAction(
-                new ExecuteCodeAction(ActionManager.OnPointerOutTrigger, () => {
-                    this.visualMeshes.forEach(m => {
-                        m.renderOutline = false;
-                    });
-                    if (this.hoverUIPanel) {
-                        this.hoverUIPanel.dispose();
-                    }
-                })
-            );
-        });
+onHoverHighlight() {
+    if (!this.mesh) {
+        console.warn("Mesh not loaded yet");
+        return;
     }
+
+    if (!this.mesh.actionManager) {
+        this.mesh.actionManager = new ActionManager(this.scene);
+    }
+
+    // Hover sur le collider -> outline sur les meshes visuels
+    this.mesh.actionManager.registerAction(
+        new ExecuteCodeAction(ActionManager.OnPointerOverTrigger, () => {
+            this.visualMeshes.forEach(m => {
+                m.renderOutline = true;
+                m.outlineColor = new Color3(0.8, 0.8, 0.8);
+            });
+        })
+    );
+
+    this.mesh.actionManager.registerAction(
+        new ExecuteCodeAction(ActionManager.OnPointerOutTrigger, () => {
+            this.visualMeshes.forEach(m => {
+                m.renderOutline = false;
+            });
+            if (this.hoverUIPanel) {
+                this.hoverUIPanel.dispose();
+            }
+        })
+    );
+}
 
     //affiche les infos de l'entité dans une UI
     displayInfo()

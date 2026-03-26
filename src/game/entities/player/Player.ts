@@ -3,6 +3,7 @@ import { Entity } from "../Entity";
 import { AdvancedDynamicTexture } from "@babylonjs/gui";
 import { Action, type InputManager } from "../../InputManager";
 import "@babylonjs/loaders/glTF"; // Assure que le loader GLTF est inclus pour charger les modèles .glb
+import { AssetManager } from "../../AssetManager";
 
 export class Player extends Entity
 {   
@@ -23,35 +24,38 @@ export class Player extends Entity
 
     async init()
     {   
-        const result = await ImportMeshAsync("/models/player.glb", this.scene);
-        this.visualMeshes = result.meshes;
-        this.visualMeshes.forEach(m => 
-        {
-            m.isPickable = true;
-        });
-        this.visualMeshes[0].rotation.y = Math.PI;
+        await AssetManager.loadModel(this.modelPath, this.scene);
+        const instance = AssetManager.instantiate(this.modelPath, this.scene);
 
-        // Mesh invisible pour la physique
+        this.visualMeshes = instance.rootNodes[0].getChildMeshes();
+        this.visualMeshes.unshift(instance.rootNodes[0] as any); // ajouter le root
+
+        this.visualMeshes[0].rotation.y = Math.PI
+
+        // Mesh invisible pour la physique ET le picking
         this.mesh = MeshBuilder.CreateCapsule("player_collider", { height: 2, radius: 0.5 }, this.scene);
-        this.mesh.isVisible = false;
-        this.mesh.position.y = 5;
+        this.mesh.isVisible = true;
+        this.mesh.visibility = 0; // Rendre le mesh invisible tout en gardant les collisions et le picking actifs
+        this.mesh.isPickable = true; // <- le collider gère les clics
+        this.mesh.position.y = 1;
 
-        // Le mesh visuel suit le collider
         this.scene.registerBeforeRender(() => {
             this.visualMeshes[0].position.copyFrom(this.mesh!.position);
-            this.visualMeshes[0].position.y -= 1; // offset pour centrer le mesh dans la capsule
+            this.visualMeshes[0].position.y -= 1;
         });
 
         this.capsuleAggregate = new PhysicsAggregate(this.mesh, PhysicsShapeType.CAPSULE, { mass: 0.1, restitution: 0 }, this.scene);
         this.capsuleAggregate.body.setMotionType(PhysicsMotionType.DYNAMIC);
 
         this.info = {
-            name : "Player",
-            description : "This is the player character."
-        }
+            name: "Player",
+            description: "This is the player character."
+        };
+
+        // Créer l'actionManager sur le collider
+        this.mesh.actionManager = new ActionManager(this.scene);
 
         this.onHoverHighlight();
-        //this.showInfo();
         this.selected();
     }
 
@@ -98,13 +102,17 @@ export class Player extends Entity
         
     }
 
-    selected()
+    selected() 
     {
-        this.mesh!.actionManager!.registerAction(
-                new ExecuteCodeAction(ActionManager.OnLeftPickTrigger, () => {
-                    this.isSelected = true;
-                    console.log("Player selected");
-        }));
+        if (!this.mesh?.actionManager) return;
+        
+        this.mesh.actionManager.registerAction(
+            new ExecuteCodeAction(ActionManager.OnLeftPickTrigger, () => {
+                this.isSelected = true;
+                this.displayInfo();
+                console.log("Player selected");
+            })
+        );
     }
 
 }

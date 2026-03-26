@@ -2,6 +2,7 @@ import { Engine, Scene } from "@babylonjs/core";
 import HavokPhysics from "@babylonjs/havok";
 import { MainMenu } from "./game/Scene/MainMenu";
 import { GameScene } from "./game/Scene/Game";
+import { AssetManager } from "./game/AssetManager";
 
 class App 
 {
@@ -47,9 +48,14 @@ class App
         };
     }
 
-    private _goToGame() {
+    private async _goToGame() {
         this._engine.displayLoadingUI();
-        
+        const tempScene = new Scene(this._engine); // Scène temporaire pour le chargement
+        await Promise.all(
+        [
+            AssetManager.loadModel("/models/player.glb",tempScene ),
+            AssetManager.loadModel("/models/ai_soldier.glb", tempScene),
+        ]);
         this._scene?.dispose();
         const game = new GameScene(this._engine, this._havokInstance);
         this._scene = game.scene;
