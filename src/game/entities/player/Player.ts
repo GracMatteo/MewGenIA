@@ -33,7 +33,8 @@ export class Player extends Entity
         }
 
         this.onHoverHighlight();
-        this.showInfo();
+        //this.showInfo();
+        this.selected();
     }
 
     async fixedUpdate()
@@ -43,18 +44,22 @@ export class Player extends Entity
 
     showInfo()
     {
-        if(!this.mesh) console.warn("Mesh not loaded yet");
-        this.mesh!.actionManager!.registerAction(
-            new ExecuteCodeAction(ActionManager.OnLeftPickTrigger, () => {
-                this.displayInfo();
-                //console.log(this.info);
-            }));
+       
     }
     
 
     update()
     {
         
+    }
+
+    selected()
+    {
+        this.mesh!.actionManager!.registerAction(
+                new ExecuteCodeAction(ActionManager.OnLeftPickTrigger, () => {
+                    this.isSelected = true;
+                    console.log("Player selected");
+        }));
     }
 
 }

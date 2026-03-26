@@ -28,6 +28,9 @@ class App {
     ui! : AdvancedDynamicTexture;
 
 
+    //test avec le player peut etre faire un array d'entity ou un entity manager
+    player! : Player;
+
     //test pour navMesh
     agents : any[] = [];
 
@@ -57,7 +60,9 @@ class App {
     gameLoop(){
         this.engine.runRenderLoop(() => {
             this.scene.render();
+            console.log(this.player.isSelected);
         });
+        
     }
 
     endGame(){
@@ -71,6 +76,14 @@ class App {
             if (event.key === "i") {
                 ShowInspector(scene);
             }
+
+            if (event.key === "Escape") {
+                // On vérifie que le joueur existe et qu'il est bien sélectionné
+                if (this.player && this.player.isSelected) {
+                    this.player.isSelected = false; // Désélectionne le joueur
+                    console.log("Joueur désélectionné (Touche Echap)");
+                }
+            }
         });
         //havok physics plugin
         const hk = new HavokPlugin(true, this.havokInstance);
@@ -83,7 +96,7 @@ class App {
         this.ui = AdvancedDynamicTexture.CreateFullscreenUI("UI", true, scene,Texture.BILINEAR_SAMPLINGMODE,true);
 
         //camera
-        this.freeCamera = new FreeCamera("freeCamera", new Vector3(0, 10, -20), scene);
+        this.freeCamera = new FreeCamera("freeCamera", new Vector3(0, 10, 30), scene);
         this.freeCamera.setTarget(Vector3.Zero());
         this.freeCamera.attachControl(this.canvas, true);
 
@@ -185,15 +198,19 @@ class App {
                     pathLine = MeshBuilder.CreateDashedLines("ribbon", {points: pathPoints, updatable: true, instance: pathLine}, scene);
                 }
         }
-        
-        scene.onPointerObservable.add((pointerInfo) => {      		
+    
+        scene.onPointerObservable.add((pointerInfo) => {            
             switch (pointerInfo.type) {
                 case PointerEventTypes.POINTERDOWN:
-                    if(pointerInfo.pickInfo!.hit) {
+                //pour eviter que le click sur le player soit pris en compte pour le déplacement    
+                    if(this.player.isSelected && pointerInfo.pickInfo!.pickedMesh == this.player.mesh) {
+                        return; // Ignore clicks on the player mesh when it's selected
+                    }
+                    if(this.player.isSelected && pointerInfo.pickInfo!.hit ) {
                         pointerDown(pointerInfo.pickInfo!.pickedMesh, this.freeCamera, crowd, this.canvas, this.navigationPlugin)
                     }
-                break;
-            }
+        
+            }        
         });
 
         scene.onBeforeRenderObservable.add(()=> {
@@ -224,6 +241,11 @@ class App {
 
         const ground = MeshBuilder.CreateGround("ground",groundOptions,this.scene)
         
+        const groundMat = new StandardMaterial("groundMat", this.scene);
+        //groundMat.diffuseColor = new Color3(0.4, 0.4, 0.4);
+        
+        ground.material = groundMat;
+    
         const groundAggregate = new PhysicsAggregate(ground, PhysicsShapeType.BOX, { mass: 0, friction: 0.7, restitution: 0.2 },this.scene);
         groundAggregate.body.setMotionType(PhysicsMotionType.STATIC);
         //console.log(groundAggregate)
@@ -233,8 +255,8 @@ class App {
     }
 
     async createPlayer(){
-        const player = new Player(this.scene, this.shadowGenerator,this.ui);
-        return player;
+        this.player = new Player(this.scene, this.shadowGenerator,this.ui);
+        return this.player;
     }
 
     

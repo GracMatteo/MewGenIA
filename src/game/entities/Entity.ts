@@ -16,6 +16,8 @@ export abstract class Entity
     protected uiTexture: AdvancedDynamicTexture;
     protected hoverUIPanel!: Rectangle;
 
+    public isSelected : boolean = false;
+
     constructor(modelName : string ,scene : Scene, shadowGenerator: ShadowGenerator, uiTexture: AdvancedDynamicTexture, modelPath? : string, scale? : number, mass? : number )
     {
         this.shadowGenerator = shadowGenerator;
@@ -45,6 +47,7 @@ export abstract class Entity
                 new ExecuteCodeAction(ActionManager.OnPointerOverTrigger, () => {
                     this.mesh!.renderOutline = true;
                     this.mesh!.outlineColor = new Color3(0.8,0.8, 0.8); //gris clair
+                    this.displayInfo(); 
                 }));
         
             this.mesh!.actionManager.registerAction(
