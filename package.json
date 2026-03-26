@@ -17,6 +17,9 @@
     "vite": "^7.3.1"
   },
   "dependencies": {
-    "@babylonjs/gui": "^8.54.3"
+    "@babylonjs/gui": "^8.54.3",
+    "babylonjs": "^8.54.0",
+    "babylonjs-loaders": "^8.54.0",
+    "recast-detour": "^1.6.4"
   }
 }

@@ -51,7 +51,8 @@ export class Player extends Entity
         }
 
         this.onHoverHighlight();
-        this.showInfo();
+        //this.showInfo();
+        this.selected();
     }
 
     async fixedUpdate()
@@ -59,24 +60,10 @@ export class Player extends Entity
 
     }
 
-showInfo()
-{
-    const pickableMeshes = this.visualMeshes.filter(m => m !== null && m.name !== "__root__");
-    
-    pickableMeshes.forEach(mesh => {
-        // actionManager déjà créé dans onHoverHighlight, on l'utilise
-        if (!mesh.actionManager) {
-            mesh.actionManager = new ActionManager(this.scene);
-        }
-        
-        mesh.actionManager.registerAction(
-            new ExecuteCodeAction(ActionManager.OnLeftPickTrigger, () => {
-                this.displayInfo();
-                console.log(this.info);
-            })
-        );
-    });
-}
+    showInfo()
+    {
+       
+    }
     
     private _handleInputs()
     {
@@ -109,6 +96,15 @@ showInfo()
     update()
     {
         
+    }
+
+    selected()
+    {
+        this.mesh!.actionManager!.registerAction(
+                new ExecuteCodeAction(ActionManager.OnLeftPickTrigger, () => {
+                    this.isSelected = true;
+                    console.log("Player selected");
+        }));
     }
 
 }

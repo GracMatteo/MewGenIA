@@ -69,6 +69,15 @@ class App
                     });
                 }
             }
+            /*
+            if (event.key === "Escape") {
+                // On vérifie que le joueur existe et qu'il est bien sélectionné
+                if (this.player && this.player.isSelected) {
+                    this.player.isSelected = false; // Désélectionne le joueur
+                    console.log("Joueur désélectionné (Touche Echap)");
+                }
+            }
+            */
         });
     }
 }

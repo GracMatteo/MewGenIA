@@ -17,6 +17,8 @@ export abstract class Entity
     protected uiTexture: AdvancedDynamicTexture;
     protected hoverUIPanel!: Rectangle;
 
+    public isSelected : boolean = false;
+
     constructor(modelName : string ,scene : Scene, shadowGenerator: ShadowGenerator, uiTexture: AdvancedDynamicTexture, modelPath? : string, scale? : number, mass? : number )
     {
         this.shadowGenerator = shadowGenerator;
