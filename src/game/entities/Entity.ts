@@ -4,7 +4,7 @@ import { Control, Rectangle, TextBlock, type AdvancedDynamicTexture } from "@bab
 
 export abstract class Entity
 {
-    protected mesh : AbstractMesh | undefined;
+    public mesh : AbstractMesh | undefined;
     protected visualMeshes: AbstractMesh[] = [];
     protected aggregate : PhysicsAggregate | undefined;
     protected shadowGenerator : ShadowGenerator;
@@ -48,31 +48,23 @@ export abstract class Entity
             return;
         }
 
-        // Appliquer le hover sur chaque mesh visuel
-        this.visualMeshes.forEach(mesh => {
-            mesh.actionManager = new ActionManager(this.scene);
-
-            mesh.actionManager.registerAction(
+        if(!this.mesh) console.warn("Mesh not loaded yet");
+            this.mesh!.actionManager = new ActionManager(this.scene);
+            this.mesh!.actionManager.registerAction(
                 new ExecuteCodeAction(ActionManager.OnPointerOverTrigger, () => {
-                    // Outline sur tous les meshes visuels
-                    this.visualMeshes.forEach(m => {
-                        m.renderOutline = true;
-                        m.outlineColor = new Color3(0.8, 0.8, 0.8);
-                    });
-                })
-            );
-
-            mesh.actionManager.registerAction(
+                    this.mesh!.renderOutline = true;
+                    this.mesh!.outlineColor = new Color3(0.8,0.8, 0.8); //gris clair
+                    this.displayInfo(); 
+                }));
+        
+            this.mesh!.actionManager.registerAction(
                 new ExecuteCodeAction(ActionManager.OnPointerOutTrigger, () => {
-                    this.visualMeshes.forEach(m => {
-                        m.renderOutline = false;
-                    });
-                    if (this.hoverUIPanel) {
-                        this.hoverUIPanel.dispose();
-                    }
-                })
-            );
-        });
+                this.mesh!.renderOutline = false;
+                if(this.hoverUIPanel){
+                    this.hoverUIPanel.dispose();
+                }
+                
+        }));
     }
 
     //affiche les infos de l'entité dans une UI

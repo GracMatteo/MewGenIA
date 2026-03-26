@@ -6,6 +6,7 @@ export const Action = {
     MENU: "MENU",
     INVENTORY: "INVENTORY",
     INTERACT: "INTERACT",
+    STOPNAV: "STOPNAV",
     MOVE: "MOVE"
 } as const;
 
@@ -21,6 +22,7 @@ export class InputManager {
         [Action.MENU]: ["Escape"],
         [Action.INVENTORY]: ["KeyI", "KeyE"],
         [Action.INTERACT]: ["Space", "Enter"],
+        [Action.STOPNAV]: ["KeyZ"],
         [Action.MOVE]: ["mouse2"] // Exemple pour une action de mouvement
     };
 

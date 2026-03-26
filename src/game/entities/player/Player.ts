@@ -33,8 +33,9 @@ export class Player extends Entity
 
         // Mesh invisible pour la physique
         this.mesh = MeshBuilder.CreateCapsule("player_collider", { height: 2, radius: 0.5 }, this.scene);
-        this.mesh.isVisible = false;
-        this.mesh.position.y = 5;
+        this.mesh.isVisible = true;
+        this.mesh.visibility = 0.3;
+        this.mesh.position.y = 1; // pour que le bas du collider soit au sol
 
         // Le mesh visuel suit le collider
         this.scene.registerBeforeRender(() => {
@@ -42,8 +43,8 @@ export class Player extends Entity
             this.visualMeshes[0].position.y -= 1; // offset pour centrer le mesh dans la capsule
         });
 
-        this.capsuleAggregate = new PhysicsAggregate(this.mesh, PhysicsShapeType.CAPSULE, { mass: 0.1, restitution: 0 }, this.scene);
-        this.capsuleAggregate.body.setMotionType(PhysicsMotionType.DYNAMIC);
+        //this.capsuleAggregate = new PhysicsAggregate(this.mesh, PhysicsShapeType.CAPSULE, { mass: 0.1, restitution: 0 }, this.scene);
+        //this.capsuleAggregate.body.setMotionType(PhysicsMotionType.DYNAMIC);
 
         this.info = {
             name : "Player",
@@ -91,6 +92,11 @@ export class Player extends Entity
         {
             console.log("Moving");
         }
+        if (this.inputs.isActionActive(Action.STOPNAV))
+        {
+            console.log("Stopping navigation");
+            this.disselected();
+        }
     }
 
     update()
@@ -103,8 +109,15 @@ export class Player extends Entity
         this.mesh!.actionManager!.registerAction(
                 new ExecuteCodeAction(ActionManager.OnLeftPickTrigger, () => {
                     this.isSelected = true;
-                    console.log("Player selected");
+                    console.log("Player selected = " , this.isSelected);
         }));
+    }
+
+    disselected(){
+        if (this.isSelected) {
+            this.isSelected = false;
+            console.log("Joueur désélectionné (Touche Echap)");
+        }       
     }
 
 }
