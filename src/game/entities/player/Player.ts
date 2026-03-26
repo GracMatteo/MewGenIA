@@ -1,7 +1,8 @@
-import { MeshBuilder,Mesh, PhysicsAggregate, PhysicsMotionType, PhysicsShapeType, type Scene, type ShadowGenerator, ActionManager, ExecuteCodeAction } from "@babylonjs/core";
+import {Mesh, PhysicsAggregate, PhysicsMotionType, PhysicsShapeType, type Scene, type ShadowGenerator, ActionManager, ExecuteCodeAction, SceneLoader, AssetContainer, AppendSceneAsync, ImportMeshAsync, MeshBuilder } from "@babylonjs/core";
 import { Entity } from "../Entity";
 import { AdvancedDynamicTexture } from "@babylonjs/gui";
 import { Action, type InputManager } from "../../InputManager";
+import "@babylonjs/loaders/glTF"; // Assure que le loader GLTF est inclus pour charger les modèles .glb
 
 export class Player extends Entity
 {   
@@ -22,15 +23,26 @@ export class Player extends Entity
 
     async init()
     {   
-        this.mesh = MeshBuilder.CreateCapsule("player_mesh", { height: 2, radius: 0.5 }, this.scene);
+        const result = await ImportMeshAsync("/models/player.glb", this.scene);
+        this.visualMeshes = result.meshes;
+        this.visualMeshes.forEach(m => 
+        {
+            m.isPickable = true;
+        });
+        this.visualMeshes[0].rotation.y = Math.PI;
+
+        // Mesh invisible pour la physique
+        this.mesh = MeshBuilder.CreateCapsule("player_collider", { height: 2, radius: 0.5 }, this.scene);
+        this.mesh.isVisible = false;
         this.mesh.position.y = 5;
-        
-        /*
-        this.transform = MeshBuilder.CreateBox("player_transform", { height: 2, width: 1, depth: 1 }, this.scene);
-        this.transform.visibility = 0.2;
-        this.transform.position = new Vector3(this.mesh.position.x, this.mesh.position.y + 1, this.mesh.position.z);
-        */
-        this.capsuleAggregate = new PhysicsAggregate(this.mesh, PhysicsShapeType.CAPSULE, { mass: 0.1, restitution:0}, this.scene);
+
+        // Le mesh visuel suit le collider
+        this.scene.registerBeforeRender(() => {
+            this.visualMeshes[0].position.copyFrom(this.mesh!.position);
+            this.visualMeshes[0].position.y -= 1; // offset pour centrer le mesh dans la capsule
+        });
+
+        this.capsuleAggregate = new PhysicsAggregate(this.mesh, PhysicsShapeType.CAPSULE, { mass: 0.1, restitution: 0 }, this.scene);
         this.capsuleAggregate.body.setMotionType(PhysicsMotionType.DYNAMIC);
 
         this.info = {
@@ -47,15 +59,24 @@ export class Player extends Entity
 
     }
 
-    showInfo()
-    {
-        if(!this.mesh) console.warn("Mesh not loaded yet");
-        this.mesh!.actionManager!.registerAction(
+showInfo()
+{
+    const pickableMeshes = this.visualMeshes.filter(m => m !== null && m.name !== "__root__");
+    
+    pickableMeshes.forEach(mesh => {
+        // actionManager déjà créé dans onHoverHighlight, on l'utilise
+        if (!mesh.actionManager) {
+            mesh.actionManager = new ActionManager(this.scene);
+        }
+        
+        mesh.actionManager.registerAction(
             new ExecuteCodeAction(ActionManager.OnLeftPickTrigger, () => {
                 this.displayInfo();
-                //console.log(this.info);
-            }));
-    }
+                console.log(this.info);
+            })
+        );
+    });
+}
     
     private _handleInputs()
     {

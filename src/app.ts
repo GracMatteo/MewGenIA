@@ -3,7 +3,8 @@ import HavokPhysics from "@babylonjs/havok";
 import { MainMenu } from "./game/Scene/MainMenu";
 import { GameScene } from "./game/Scene/Game";
 
-class App {
+class App 
+{
     private _canvas: HTMLCanvasElement;
     private _engine: Engine;
     private _scene!: Scene;

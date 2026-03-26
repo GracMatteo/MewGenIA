@@ -5,6 +5,7 @@ import { Control, Rectangle, TextBlock, type AdvancedDynamicTexture } from "@bab
 export abstract class Entity
 {
     protected mesh : AbstractMesh | undefined;
+    protected visualMeshes: AbstractMesh[] = [];
     protected aggregate : PhysicsAggregate | undefined;
     protected shadowGenerator : ShadowGenerator;
     protected scene : Scene;
@@ -38,27 +39,43 @@ export abstract class Entity
     abstract fixedUpdate(input?: any) : void;
 
     //hover entity logique
-    onHoverHighlight(){
-        if(!this.mesh) console.warn("Mesh not loaded yet");
-            this.mesh!.actionManager = new ActionManager(this.scene);
-            this.mesh!.actionManager.registerAction(
+    onHoverHighlight() 
+    {
+        if (this.visualMeshes.length === 0) {
+            console.warn("Visual meshes not loaded yet");
+            return;
+        }
+
+        // Appliquer le hover sur chaque mesh visuel
+        this.visualMeshes.forEach(mesh => {
+            mesh.actionManager = new ActionManager(this.scene);
+
+            mesh.actionManager.registerAction(
                 new ExecuteCodeAction(ActionManager.OnPointerOverTrigger, () => {
-                    this.mesh!.renderOutline = true;
-                    this.mesh!.outlineColor = new Color3(0.8,0.8, 0.8); //gris clair
-                }));
-        
-            this.mesh!.actionManager.registerAction(
+                    // Outline sur tous les meshes visuels
+                    this.visualMeshes.forEach(m => {
+                        m.renderOutline = true;
+                        m.outlineColor = new Color3(0.8, 0.8, 0.8);
+                    });
+                })
+            );
+
+            mesh.actionManager.registerAction(
                 new ExecuteCodeAction(ActionManager.OnPointerOutTrigger, () => {
-                this.mesh!.renderOutline = false;
-                if(this.hoverUIPanel){
-                    this.hoverUIPanel.dispose();
-                }
-                
-        }));
+                    this.visualMeshes.forEach(m => {
+                        m.renderOutline = false;
+                    });
+                    if (this.hoverUIPanel) {
+                        this.hoverUIPanel.dispose();
+                    }
+                })
+            );
+        });
     }
 
     //affiche les infos de l'entité dans une UI
-    displayInfo(){
+    displayInfo()
+    {
         //Créer le conteneur principal (le fond de la carte)
         this.hoverUIPanel = new Rectangle("hoverInfoRect");
         this.hoverUIPanel.width = "150px";
@@ -99,8 +116,10 @@ export abstract class Entity
         this.uiTexture.addControl(this.hoverUIPanel);
 
         //Pour ajouter le ui a cote du personnage
-        if(this.mesh){
-            this.hoverUIPanel.linkWithMesh(this.mesh);
+        const rootMesh = this.visualMeshes[0];
+        if (rootMesh) 
+        {
+            this.hoverUIPanel.linkWithMesh(rootMesh);
             this.hoverUIPanel.linkOffsetX = 150;
             this.hoverUIPanel.linkOffsetY = 50;
         }
