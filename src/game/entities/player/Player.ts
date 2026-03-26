@@ -43,8 +43,8 @@ export class Player extends Entity
             this.visualMeshes[0].position.y -= 1; // offset pour centrer le mesh dans la capsule
         });
 
-        //this.capsuleAggregate = new PhysicsAggregate(this.mesh, PhysicsShapeType.CAPSULE, { mass: 0.1, restitution: 0 }, this.scene);
-        //this.capsuleAggregate.body.setMotionType(PhysicsMotionType.DYNAMIC);
+        this.capsuleAggregate = new PhysicsAggregate(this.mesh, PhysicsShapeType.CAPSULE, { mass: 0.1, restitution: 0 }, this.scene);
+        this.capsuleAggregate.body.setMotionType(PhysicsMotionType.DYNAMIC);
 
         this.info = {
             name : "Player",

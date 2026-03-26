@@ -166,6 +166,9 @@ export class GameScene {
                     if (pickInfo.pickedMesh === this.player.mesh) return;
 
                     const destination = pickInfo.pickedPoint!;
+
+                    this._createClickFeedback(destination);
+
                     const agents = this._crowd.getAgents();
                     //console.log('agents: ', agents);
                     for (let i = 0; i < agents.length; i++) {
@@ -202,6 +205,48 @@ export class GameScene {
             }, this.scene);
 
         }
+    }
+
+    private _createClickFeedback(position: Vector3): void {
+        // 1. Créer un disque plat au point d'impact
+        const feedback = MeshBuilder.CreateDisc("clickFeedback", { radius: 0.5 }, this.scene);
+        
+        // Positionner le disque légèrement au-dessus du sol pour éviter le clignotement (Z-fighting)
+        feedback.position = position.clone();
+        feedback.position.y += 0.05; 
+        feedback.rotation.x = Math.PI / 2; // Le mettre à plat
+
+        // 2. Créer un matériau simple
+        const mat = new StandardMaterial("feedbackMat", this.scene);
+        mat.diffuseColor = new Color3(1, 1, 1); // Blanc (ou la couleur de votre choix)
+        mat.emissiveColor = new Color3(0.5, 0.5, 0.5); // Pour qu'il brille un peu
+        mat.alpha = 0.6;
+        feedback.material = mat;
+
+        // 3. L'Animation (Scale et Alpha)
+        let frame = 0;
+        const maxFrames = 30; // Durée de l'animation (environ 0.5s à 60fps)
+
+        const animate = () => {
+            frame++;
+            const progress = frame / maxFrames;
+
+            // Le cercle s'agrandit
+            feedback.scaling.scaleInPlace(1.05);
+            
+            // Le cercle devient transparent
+            mat.alpha = 0.6 * (1 - progress);
+
+            if (frame < maxFrames) {
+                requestAnimationFrame(animate);
+            } else {
+                // Nettoyage complet
+                feedback.dispose();
+                mat.dispose();
+            }
+        };
+
+        animate();
     }
 
     private _updateAgents(): void {
