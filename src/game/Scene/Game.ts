@@ -159,6 +159,9 @@ export class GameScene {
     private _setupPointerEvents(): void {
         this.scene.onPointerObservable.add((pointerInfo) => {
             if (pointerInfo.type === PointerEventTypes.POINTERDOWN) {
+                //pour que ce soit que le click gauche qui déclenche le déplacement
+                if (pointerInfo.event.button !== 0) return;
+                
                 const pickInfo = pointerInfo.pickInfo;
                 //console.log("Pointer down at: ", pickInfo?.pickedPoint);
                 if (pickInfo?.hit && this.player.isSelected) {
