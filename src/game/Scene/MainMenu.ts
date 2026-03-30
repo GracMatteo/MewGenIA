@@ -46,7 +46,7 @@ export class MainMenu {
         title.top = "-100px";
         this._gui.addControl(title);
 
-        const playBtn = Button.CreateSimpleButton("playBtn", "JOUER");
+        const playBtn = Button.CreateSimpleButton("playBtn", "LvL 1");
         playBtn.width = "200px";
         playBtn.height = "60px";
         playBtn.color = "white";
@@ -55,5 +55,17 @@ export class MainMenu {
         playBtn.onPointerUpObservable.add(() => this.onPlayPressed());
         
         this._gui.addControl(playBtn);
+
+        const TestingGround = Button.CreateSimpleButton("testingGround", "TESTING GROUND");
+        TestingGround.top = "80px";
+        TestingGround.left = "0px";
+        TestingGround.width = "200px";
+        TestingGround.height = "60px";
+        TestingGround.color = "white";
+        TestingGround.background = "#27ae60";
+        TestingGround.cornerRadius = 10;
+        TestingGround.onPointerUpObservable.add(() => this.onPlayPressed());
+        this._gui.addControl(TestingGround);
+       
     }
 }
