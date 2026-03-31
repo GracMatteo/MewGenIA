@@ -1,50 +1,78 @@
-import { 
-    Scene, Engine, Vector3, DirectionalLight, ShadowGenerator, 
-    MeshBuilder, PhysicsAggregate, PhysicsShapeType, PhysicsMotionType, 
-    HavokPlugin, Texture, FreeCamera, StandardMaterial, Color3, 
-    Mesh, TransformNode, PointerEventTypes, RecastJSPlugin 
+import {
+    Color3,
+    DirectionalLight,
+    Engine,
+    FreeCamera,
+    HavokPlugin,
+    Mesh,
+    MeshBuilder,
+    PhysicsAggregate,
+    PhysicsMotionType,
+    PhysicsShapeType,
+    PointerEventTypes,
+    RecastJSPlugin,
+    Scene,
+    ShadowGenerator,
+    StandardMaterial,
+    Texture,
+    TransformNode,
+    Vector3
 } from "@babylonjs/core";
 import { AdvancedDynamicTexture } from "@babylonjs/gui";
+import { Action, InputManager } from "../InputManager";
+import type { LevelDefinition, LevelId } from "../LevelTypes";
+import { LEVEL_IDS } from "../LevelTypes";
 import { Player } from "../entities/player/Player";
-import { InputManager } from "../InputManager";
-
 
 export class GameScene {
     public scene: Scene;
+    public player!: Player;
+
     private _engine: Engine;
     private _havokInstance: any;
     private _recastInstance: any;
+    private _level: LevelDefinition;
+    private _onReturnToMenu: () => void;
 
-    // Plugins
     private _navigationPlugin!: RecastJSPlugin;
     private _crowd: any;
-
-    // Éléments de scène
     private _ui!: AdvancedDynamicTexture;
     private _shadowGenerator!: ShadowGenerator;
     private _inputManager: InputManager;
     private _camera!: FreeCamera;
-
     private _pathLine: Mesh | null = null;
-
-    // Entités
-    public player!: Player;
     private _agents: any[] = [];
 
-    constructor(engine: Engine, havokInstance: any, recastInstance: any) {
+    constructor(
+        engine: Engine,
+        havokInstance: any,
+        recastInstance: any,
+        level: LevelDefinition,
+        onReturnToMenu: () => void
+    ) {
         this._engine = engine;
         this._havokInstance = havokInstance;
-        
+        this._recastInstance = recastInstance;
+        this._level = level;
+        this._onReturnToMenu = onReturnToMenu;
+
         this.scene = new Scene(this._engine);
 
         this._initPhysics();
         this._initNavigation();
         this._initCamera();
         this._inputManager = new InputManager(this.scene);
-        this._ui = AdvancedDynamicTexture.CreateFullscreenUI("GameUI", true, this.scene, Texture.BILINEAR_SAMPLINGMODE, true);
+        this._ui = AdvancedDynamicTexture.CreateFullscreenUI(
+            "GameUI",
+            true,
+            this.scene,
+            Texture.BILINEAR_SAMPLINGMODE,
+            true
+        );
 
         this._setupLights();
-        this._initLevel();
+        this._setupMenuShortcut();
+        this._initLevel(this._level.id);
     }
 
     private _initPhysics(): void {
@@ -71,59 +99,94 @@ export class GameScene {
         this._shadowGenerator = new ShadowGenerator(1024, light);
     }
 
-    private async _initLevel(): Promise<void> {
-        // 1. Création du sol et obstacles
-        const ground = this._createGround();
-        const cube = MeshBuilder.CreateBox("obstacle_cube", { size: 4 }, this.scene);
-        cube.position = new Vector3(10, 2, 0);
+    private async _initLevel(levelId: LevelId): Promise<void> {
+        const levelMeshes = this._buildLevel(levelId);
 
-        // 2. Création du Player
         this.player = new Player(this.scene, this._inputManager, this._shadowGenerator, this._ui);
-
-        // 3. Génération du NavMesh
-        // Note: On merge les meshs statiques pour le calcul du NavMesh
-        const staticMesh = Mesh.MergeMeshes([ground, cube]) as Mesh;
-        this._setupNavMesh(staticMesh);
-
-        // 4. Setup de la foule (Crowd)
+        this._setupNavMesh(levelMeshes);
         this._setupCrowd();
-        
-        // 5. Setup des événements de clic pour le mouvement
         this._setupPointerEvents();
-
-        // 6. Boucle de mise à jour des agents
         this.scene.onBeforeRenderObservable.add(() => this._updateAgents());
     }
 
-    private _createGround(): Mesh {
-        const ground = MeshBuilder.CreateGround("ground", { width: 200, height: 200 }, this.scene);
+    private _setupMenuShortcut(): void {
+        this._inputManager.onActionTriggered(Action.MENU, () => {
+            this._onReturnToMenu();
+        });
+    }
+
+    private _buildLevel(levelId: LevelId): Mesh[] {
+        switch (levelId) {
+            case LEVEL_IDS.LEVEL_1:
+                return this._buildLevel1();
+            case LEVEL_IDS.TESTING_GROUND:
+                return this._buildTestingGround();
+            default:
+                throw new Error(`No level builder configured for ${levelId}`);
+        }
+    }
+
+    private _buildLevel1(): Mesh[] {
+        const ground = this._createGround("level1_ground", 200, 200);
+
+        const cube = MeshBuilder.CreateBox("level1_obstacle_cube", { size: 4 }, this.scene);
+        cube.position = new Vector3(15, 2, 0);
+
+        const wall = MeshBuilder.CreateBox("level1_wall", { width: 4, height: 4, depth: 18 }, this.scene);
+        wall.position = new Vector3(-15, 2, 12);
+
+        return [ground, cube, wall];
+    }
+
+    private _buildTestingGround(): Mesh[] {
+        const ground = this._createGround("testing_ground", 120, 120);
+
+        const centralBlock = MeshBuilder.CreateBox(
+            "testing_central_block",
+            { width: 8, height: 3, depth: 8 },
+            this.scene
+        );
+        centralBlock.position = new Vector3(-10, 1.5, 0);
+
+        const ramp = MeshBuilder.CreateBox("testing_ramp", { width: 6, height: 1, depth: 18 }, this.scene);
+        ramp.position = new Vector3(18, 0, -8);
+        ramp.rotation.z = Math.PI / 10;
+
+        const sideCover = MeshBuilder.CreateBox("testing_side_cover", { width: 5, height: 5, depth: 5 }, this.scene);
+        sideCover.position = new Vector3(-20, 2.5, -15);
+
+        return [ground, centralBlock, ramp, sideCover];
+    }
+
+    private _createGround(name: string, width: number, height: number): Mesh {
+        const ground = MeshBuilder.CreateGround(name, { width, height }, this.scene);
         ground.receiveShadows = true;
-        
+
         new PhysicsAggregate(ground, PhysicsShapeType.BOX, { mass: 0, friction: 0.7 }, this.scene)
             .body.setMotionType(PhysicsMotionType.STATIC);
-            
+
         return ground;
     }
 
-    private _setupNavMesh(mesh: Mesh): void {
+    private _setupNavMesh(meshes: Mesh[]): void {
         const navmeshParameters = {
-            cs: 0.2, ch: 0.2,
+            cs: 0.2,
+            ch: 0.2,
             walkableSlopeAngle: 90,
             walkableHeight: 1.0,
             walkableClimb: 1,
-            walkableRadius: 2,
-            maxEdgeLen: 12.,
+            walkableRadius: 3,
+            maxEdgeLen: 12.0,
             maxSimplificationError: 1.3,
             minRegionArea: 8,
             mergeRegionArea: 20,
             maxVertsPerPoly: 6,
             detailSampleDist: 6,
-            detailSampleMaxError: 1,
+            detailSampleMaxError: 1
         };
 
-        this._navigationPlugin.createNavMesh([mesh], navmeshParameters);
-        
-        // Debug NavMesh (Optionnel)
+        this._navigationPlugin.createNavMesh(meshes, navmeshParameters);
+
         const debugMesh = this._navigationPlugin.createDebugNavMesh(this.scene);
         debugMesh.position.y = 0.01;
         const mat = new StandardMaterial("navMeshDebugMat", this.scene);
@@ -134,11 +197,14 @@ export class GameScene {
 
     private _setupCrowd(): void {
         this._crowd = this._navigationPlugin.createCrowd(10, 0.1, this.scene);
-        
+
         const agentParams = {
-            radius: 0.1, height: 2,
-            maxAcceleration: 99999.0, maxSpeed: 6.0,
-            collisionQueryRange: 0.5, pathOptimizationRange: 0.0,
+            radius: 0.1,
+            height: 2,
+            maxAcceleration: 99999.0,
+            maxSpeed: 6.0,
+            collisionQueryRange: 0.5,
+            pathOptimizationRange: 0.0,
             separationWeight: 1.0
         };
 
@@ -146,104 +212,91 @@ export class GameScene {
         const transform = new TransformNode("agent_transform");
         const agentIndex = this._crowd.addAgent(randomPos, agentParams, transform);
 
-        // On lie le mesh du player à cet agent du crowd
         this._agents.push({
             idx: agentIndex,
             trf: transform,
-            mesh: this.player.mesh, // On suppose que Player a une propriété mesh
+            mesh: this.player.mesh,
             target: MeshBuilder.CreateBox("target", { size: 0.1 }, this.scene)
         });
-        //console.log(this._agents);
     }
 
     private _setupPointerEvents(): void {
         this.scene.onPointerObservable.add((pointerInfo) => {
-            if (pointerInfo.type === PointerEventTypes.POINTERDOWN) {
-                //pour que ce soit que le click gauche qui déclenche le déplacement
-                if (pointerInfo.event.button !== 0) return;
-                
-                const pickInfo = pointerInfo.pickInfo;
-                //console.log("Pointer down at: ", pickInfo?.pickedPoint);
-                if (pickInfo?.hit && this.player.isSelected) {
-                    // Si on clique sur le player lui-même, on ne bouge pas
-                    if (pickInfo.pickedMesh === this.player.mesh) return;
+            if (pointerInfo.type !== PointerEventTypes.POINTERDOWN || pointerInfo.event.button !== 0) {
+                return;
+            }
 
-                    const destination = pickInfo.pickedPoint!;
+            const pickInfo = pointerInfo.pickInfo;
+            if (!pickInfo?.hit || !this.player.isSelected) {
+                return;
+            }
 
-                    this._createClickFeedback(destination);
+            if (pickInfo.pickedMesh === this.player.mesh) {
+                return;
+            }
 
-                    const agents = this._crowd.getAgents();
-                    //console.log('agents: ', agents);
-                    for (let i = 0; i < agents.length; i++) {
-                        const closestNavPoint = this._navigationPlugin.getClosestPoint(destination);
-                        this._crowd.agentGoto(agents[i], closestNavPoint);
-                        this._drawPath(this.player.mesh!.position, closestNavPoint);
-                    }
+            const destination = pickInfo.pickedPoint!;
+            this._createClickFeedback(destination);
 
-                    
-                }
+            const agents = this._crowd.getAgents();
+            for (let i = 0; i < agents.length; i++) {
+                const closestNavPoint = this._navigationPlugin.getClosestPoint(destination);
+                this._crowd.agentGoto(agents[i], closestNavPoint);
+                this._drawPath(this.player.mesh!.position, closestNavPoint);
             }
         });
     }
 
     private _drawPath(start: Vector3, end: Vector3): void {
-        // Calculer les points du chemin via le NavMesh
         const pathPoints = this._navigationPlugin.computePath(
             this._navigationPlugin.getClosestPoint(start),
             end
         );
 
-        // Si une ligne existe déjà, on la détruit
         if (this._pathLine) {
             this._pathLine.dispose();
         }
 
-        // On crée une nouvelle ligne (ou ligne pointillée)
         if (pathPoints && pathPoints.length > 1) {
-            this._pathLine = MeshBuilder.CreateDashedLines("navPathLine", {
-                points: pathPoints,
-                dashSize: 3,
-                gapSize: 1,
-                updatable: false
-            }, this.scene);
-
+            this._pathLine = MeshBuilder.CreateDashedLines(
+                "navPathLine",
+                {
+                    points: pathPoints,
+                    dashSize: 3,
+                    gapSize: 1,
+                    updatable: false
+                },
+                this.scene
+            );
         }
     }
 
     private _createClickFeedback(position: Vector3): void {
-        // 1. Créer un disque plat au point d'impact
         const feedback = MeshBuilder.CreateDisc("clickFeedback", { radius: 0.5 }, this.scene);
-        
-        // Positionner le disque légèrement au-dessus du sol pour éviter le clignotement (Z-fighting)
-        feedback.position = position.clone();
-        feedback.position.y += 0.05; 
-        feedback.rotation.x = Math.PI / 2; // Le mettre à plat
 
-        // 2. Créer un matériau simple
+        feedback.position = position.clone();
+        feedback.position.y += 0.05;
+        feedback.rotation.x = Math.PI / 2;
+
         const mat = new StandardMaterial("feedbackMat", this.scene);
-        mat.diffuseColor = new Color3(1, 1, 1); // Blanc (ou la couleur de votre choix)
-        mat.emissiveColor = new Color3(0.5, 0.5, 0.5); // Pour qu'il brille un peu
+        mat.diffuseColor = new Color3(1, 1, 1);
+        mat.emissiveColor = new Color3(0.5, 0.5, 0.5);
         mat.alpha = 0.6;
         feedback.material = mat;
 
-        // 3. L'Animation (Scale et Alpha)
         let frame = 0;
-        const maxFrames = 30; // Durée de l'animation (environ 0.5s à 60fps)
+        const maxFrames = 30;
 
         const animate = () => {
             frame++;
             const progress = frame / maxFrames;
 
-            // Le cercle s'agrandit
             feedback.scaling.scaleInPlace(1.05);
-            
-            // Le cercle devient transparent
             mat.alpha = 0.6 * (1 - progress);
 
             if (frame < maxFrames) {
                 requestAnimationFrame(animate);
             } else {
-                // Nettoyage complet
                 feedback.dispose();
                 mat.dispose();
             }
@@ -253,21 +306,18 @@ export class GameScene {
     }
 
     private _updateAgents(): void {
-        this._agents.forEach(ag => {
-
-            // Si l'agent n'a pas encore de mesh lié, on lui attribue celui du player (pour le debug)
+        this._agents.forEach((ag) => {
             if (!ag.mesh && this.player && this.player.mesh) {
                 ag.mesh = this.player.mesh;
             }
 
-            if (!ag.mesh) return;
+            if (!ag.mesh) {
+                return;
+            }
 
             const agentPos = this._crowd.getAgentPosition(ag.idx);
-            
-            // Mise à jour position mesh (avec offset Y pour sortir du sol)
             ag.mesh.position.set(agentPos.x, agentPos.y + 1.0, agentPos.z);
-            
-            // Rotation vers la vélocité
+
             const vel = this._crowd.getAgentVelocity(ag.idx);
             if (vel.length() > 0.2) {
                 vel.normalize();
@@ -275,7 +325,6 @@ export class GameScene {
                 ag.mesh.rotation.y = ag.mesh.rotation.y + (desiredRotation - ag.mesh.rotation.y) * 0.15;
             }
 
-            // Si l'agent est presque arrêté, on peut effacer la ligne
             if (vel.length() < 0.1 && this._pathLine) {
                 this._pathLine.dispose();
                 this._pathLine = null;

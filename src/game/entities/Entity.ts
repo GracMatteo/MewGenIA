@@ -19,7 +19,7 @@ export abstract class Entity
 
     public isSelected : boolean = false;
 
-    constructor(modelName : string ,scene : Scene, shadowGenerator: ShadowGenerator, uiTexture: AdvancedDynamicTexture, modelPath? : string, scale? : number, mass? : number )
+    constructor(modelName : string ,scene : Scene, shadowGenerator: ShadowGenerator, uiTexture: AdvancedDynamicTexture, modelPath? : string, _scale? : number, _mass? : number )
     {
         this.shadowGenerator = shadowGenerator;
         this.scene = scene;
