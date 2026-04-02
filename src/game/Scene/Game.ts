@@ -23,6 +23,7 @@ import { Action, InputManager } from "../InputManager";
 import type { LevelDefinition, LevelId } from "../LevelTypes";
 import { LEVEL_IDS } from "../LevelTypes";
 import { Player } from "../entities/player/Player";
+import { Grenade } from "../objects/weapons/Grenade";
 
 export class GameScene {
     public scene: Scene;
@@ -42,6 +43,7 @@ export class GameScene {
     private _camera!: FreeCamera;
     private _pathLine: Mesh | null = null;
     private _agents: any[] = [];
+    private _objects: Object[] = [];
 
     constructor(
         engine: Engine,
@@ -101,6 +103,12 @@ export class GameScene {
 
     private async _initLevel(levelId: LevelId): Promise<void> {
         const levelMeshes = this._buildLevel(levelId);
+
+        const grenade = new Grenade(this.scene, this._ui, this._shadowGenerator);
+        await grenade.init();
+        grenade.mesh!.position.set(5, 1, 5);
+        this._objects.push(grenade);
+
 
         this.player = new Player(this.scene, this._inputManager, this._shadowGenerator, this._ui);
         this._setupNavMesh(levelMeshes);
@@ -316,13 +324,16 @@ export class GameScene {
             }
 
             const agentPos = this._crowd.getAgentPosition(ag.idx);
-            ag.mesh.position.set(agentPos.x, agentPos.y + 1.0, agentPos.z);
+            const physicsTarget = new Vector3(agentPos.x, ag.mesh.position.y, agentPos.z);
+            this.player.moveToward(physicsTarget, 6);
 
             const vel = this._crowd.getAgentVelocity(ag.idx);
             if (vel.length() > 0.2) {
                 vel.normalize();
                 const desiredRotation = Math.atan2(vel.x, vel.z);
                 ag.mesh.rotation.y = ag.mesh.rotation.y + (desiredRotation - ag.mesh.rotation.y) * 0.15;
+            } else {
+                this.player.stopMovement();
             }
 
             if (vel.length() < 0.1 && this._pathLine) {

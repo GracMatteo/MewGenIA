@@ -1,4 +1,16 @@
-import {Mesh, PhysicsAggregate, PhysicsMotionType, PhysicsShapeType, type Scene, type ShadowGenerator, ActionManager, ExecuteCodeAction, ImportMeshAsync, MeshBuilder } from "@babylonjs/core";
+import {
+    ActionManager,
+    ExecuteCodeAction,
+    ImportMeshAsync,
+    Mesh,
+    MeshBuilder,
+    PhysicsAggregate,
+    PhysicsMotionType,
+    PhysicsShapeType,
+    Vector3,
+    type Scene,
+    type ShadowGenerator
+} from "@babylonjs/core";
 import { Entity } from "../Entity";
 import { AdvancedDynamicTexture } from "@babylonjs/gui";
 import { Action, type InputManager } from "../../InputManager";
@@ -6,6 +18,8 @@ import "@babylonjs/loaders/glTF"; // Assure que le loader GLTF est inclus pour c
 
 export class Player extends Entity
 {   
+    private static readonly MOVE_STOP_DISTANCE = 0.35;
+
     transform! : Mesh;
     capsuleAggregate: any;
     inputs: InputManager;
@@ -43,8 +57,9 @@ export class Player extends Entity
             this.visualMeshes[0].position.y -= 1; // offset pour centrer le mesh dans la capsule
         });
 
-        this.capsuleAggregate = new PhysicsAggregate(this.mesh, PhysicsShapeType.CAPSULE, { mass: 0.1, restitution: 0 }, this.scene);
+        this.capsuleAggregate = new PhysicsAggregate(this.mesh, PhysicsShapeType.CAPSULE, { mass: 1, restitution: 0 }, this.scene);
         this.capsuleAggregate.body.setMotionType(PhysicsMotionType.DYNAMIC);
+        //this.capsuleAggregate.body.setCollisionCallbackEnabled(true);
 
         this.info = {
             name : "Player",
@@ -102,6 +117,41 @@ export class Player extends Entity
     update()
     {
         
+    }
+
+    moveToward(target: Vector3, speed: number): void
+    {
+        if (!this.mesh || !this.capsuleAggregate?.body) {
+            return;
+        }
+
+        const currentPosition = this.mesh.position;
+        const direction = target.subtract(currentPosition);
+        direction.y = 0;
+
+        const distance = direction.length();
+        const currentVelocity = this.capsuleAggregate.body.getLinearVelocity();
+        const verticalVelocity = currentVelocity?.y ?? 0;
+
+        if (distance <= Player.MOVE_STOP_DISTANCE) {
+            this.capsuleAggregate.body.setLinearVelocity(new Vector3(0, verticalVelocity, 0));
+            return;
+        }
+
+        direction.normalize();
+        this.capsuleAggregate.body.setLinearVelocity(
+            new Vector3(direction.x * speed, verticalVelocity, direction.z * speed)
+        );
+    }
+
+    stopMovement(): void
+    {
+        if (!this.capsuleAggregate?.body) {
+            return;
+        }
+
+        const currentVelocity = this.capsuleAggregate.body.getLinearVelocity();
+        this.capsuleAggregate.body.setLinearVelocity(new Vector3(0, currentVelocity?.y ?? 0, 0));
     }
 
     selected()

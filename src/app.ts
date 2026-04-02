@@ -2,6 +2,7 @@ import { Engine } from "@babylonjs/core";
 import HavokPhysics from "@babylonjs/havok";
 import Recast from "recast-detour";
 import { LevelManager } from "./game/LevelManager";
+import "@babylonjs/inspector";
 
 class App {
     private _canvas: HTMLCanvasElement;
@@ -47,7 +48,7 @@ class App {
     private _initDebug(): void {
         window.addEventListener("keydown", (event) => {
             const scene = this._levelManager.currentScene;
-            if (!scene || event.key !== "x") {
+            if (!scene || event.key !== "v") {
                 return;
             }
 

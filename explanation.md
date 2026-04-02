@@ -193,3 +193,138 @@ npm run build
 ```
 
 The build passed successfully.
+
+# Player And Grenade Physics Explanation
+
+## Goal
+
+The goal of this change was to make the player capsule interact physically with the grenade sphere.
+
+Before the change:
+
+- the player had a physics capsule
+- the grenade had a physics sphere
+- but the player collider was moved by directly setting `mesh.position`
+- direct position teleporting bypassed proper physics collision response
+
+Because of that, the player could visually overlap or ignore the grenade instead of pushing it naturally.
+
+## Root Cause
+
+The main problem was in [`src/game/Scene/Game.ts`](c:/Users/matte/Dev/BABYLON/MewGenIA/src/game/Scene/Game.ts).
+
+The navigation crowd computed a target position correctly, but `_updateAgents()` moved the player like this:
+
+```ts
+ag.mesh.position.set(agentPos.x, agentPos.y + 1.0, agentPos.z);
+```
+
+That line overwrote the collider position every frame.
+
+When a physics body is teleported like that:
+
+- Havok does not get a normal movement step to resolve against other dynamic bodies
+- contacts feel wrong or disappear
+- the player does not properly push the grenade
+
+## What Changed
+
+### 1. `src/game/entities/player/Player.ts`
+
+I added two helper methods:
+
+- `moveToward(target: Vector3, speed: number)`
+- `stopMovement()`
+
+What `moveToward()` does:
+
+- reads the current player position
+- computes a horizontal direction toward the navigation target
+- preserves the current vertical velocity
+- calls `capsuleAggregate.body.setLinearVelocity(...)`
+
+This means the player is now moved by the physics body instead of by manually changing mesh coordinates.
+
+What `stopMovement()` does:
+
+- stops horizontal velocity
+- keeps the vertical velocity so gravity still works correctly
+
+I also added a small stop distance:
+
+- `MOVE_STOP_DISTANCE = 0.35`
+
+This avoids jitter when the player is already very close to the target.
+
+### 2. `src/game/Scene/Game.ts`
+
+I changed `_updateAgents()` so it no longer teleports the player collider.
+
+Before:
+
+```ts
+ag.mesh.position.set(agentPos.x, agentPos.y + 1.0, agentPos.z);
+```
+
+After:
+
+- the crowd still computes the desired path
+- the scene creates a `physicsTarget`
+- the scene calls `this.player.moveToward(physicsTarget, 6)`
+
+And when the crowd velocity becomes very small, the scene calls:
+
+```ts
+this.player.stopMovement();
+```
+
+So now the responsibilities are cleaner:
+
+- Recast crowd decides where the player should go
+- the player physics body decides how the collider actually moves
+- Havok handles the collision with the grenade sphere
+
+## Why This Works Better
+
+Now both bodies are part of the same physics simulation:
+
+- player capsule = dynamic physics body
+- grenade sphere = dynamic physics body
+
+Since the player moves through linear velocity, Havok can resolve collision properly.
+
+That gives the expected result:
+
+- the player reaches the grenade
+- the capsule collides with the sphere
+- the grenade gets pushed instead of being ignored
+
+## Important Design Note
+
+The navmesh crowd is still useful, but it should be treated as a movement guide, not as the final source of truth for the collider transform.
+
+Good pattern:
+
+- nav system computes the destination
+- physics body performs the actual movement
+
+Risky pattern:
+
+- nav system directly overwrites `mesh.position` every frame
+
+That risky pattern breaks physical interaction with other bodies.
+
+## Files Updated
+
+- [`src/game/entities/player/Player.ts`](c:/Users/matte/Dev/BABYLON/MewGenIA/src/game/entities/player/Player.ts)
+- [`src/game/Scene/Game.ts`](c:/Users/matte/Dev/BABYLON/MewGenIA/src/game/Scene/Game.ts)
+
+## Verification
+
+The change was verified with:
+
+```bash
+npm run build
+```
+
+The build passed successfully.
