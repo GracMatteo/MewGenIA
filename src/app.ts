@@ -61,14 +61,7 @@ class App {
 
     private async _goToGame() {
         this._engine.displayLoadingUI();
-        const tempScene = new Scene(this._engine); // Scène temporaire pour le chargement
-        await Promise.all(
-        [
-            AssetManager.loadModel("/models/player.glb",tempScene ),
-            AssetManager.loadModel("/models/ai_soldier.glb", tempScene),
-        ]);
         this._scene?.dispose();
-
         // On passe havokInstance ET recastInstance à la GameScene
         const game = new GameScene(
             this._engine, 
@@ -78,7 +71,11 @@ class App {
         
         this._scene = game.scene;
         this._initDebug(this._scene, game); // On passe l'instance game pour le debug du player
-        
+        await Promise.all(
+        [
+            AssetManager.loadModel("/models/player.glb",this._scene),
+            AssetManager.loadModel("/models/ai_soldier.glb", this._scene),
+        ]);
         this._engine.hideLoadingUI();
     }
 
