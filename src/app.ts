@@ -1,7 +1,10 @@
-import { Engine } from "@babylonjs/core";
+import { Engine, Scene } from "@babylonjs/core";
 import HavokPhysics from "@babylonjs/havok";
 import Recast from "recast-detour";
 import { LevelManager } from "./game/LevelManager";
+import { MainMenu } from "./game/Scene/MainMenu";
+import { GameScene } from "./game/Scene/Game";
+import { AssetManager } from "./game/AssetManager";
 
 class App {
     private _canvas: HTMLCanvasElement;
@@ -10,6 +13,7 @@ class App {
 
     private _havokInstance: any;
     private _recastInstance: any;
+    private _scene: any;
 
     constructor() {
         this._canvas = document.getElementById("renderCanvas") as HTMLCanvasElement;
@@ -39,12 +43,11 @@ class App {
         });
 
         this._levelManager.goToMainMenu();
-        this._initDebug();
-
         window.addEventListener("resize", () => this._engine.resize());
     }
 
-    private _initDebug(): void {
+
+    private _initDebug(scene: Scene, gameInstance: GameScene): void {
         window.addEventListener("keydown", (event) => {
             const scene = this._levelManager.currentScene;
             if (!scene || event.key !== "x") {

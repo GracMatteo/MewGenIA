@@ -23,6 +23,10 @@ import { Action, InputManager } from "../InputManager";
 import type { LevelDefinition, LevelId } from "../LevelTypes";
 import { LEVEL_IDS } from "../LevelTypes";
 import { Player } from "../entities/player/Player";
+import "@babylonjs/core/Debug/debugLayer"; // Ajoute la couche de debug à la classe Scene
+import "@babylonjs/inspector";
+import { AISoldier } from "../entities/enemies/AISoldier";
+
 
 export class GameScene {
     public scene: Scene;
@@ -69,7 +73,12 @@ export class GameScene {
             Texture.BILINEAR_SAMPLINGMODE,
             true
         );
-
+        this._ui = AdvancedDynamicTexture.CreateFullscreenUI("GameUI", true, this.scene, Texture.BILINEAR_SAMPLINGMODE, true);
+        // 3. Environnement
+        this._setupLights();
+        this._createGround("ground", 200, 200);
+        
+        // 4. Entités
         this._setupLights();
         this._setupMenuShortcut();
         this._initLevel(this._level.id);
@@ -92,6 +101,7 @@ export class GameScene {
         this._camera.checkCollisions = true;
     }
 
+
     private _setupLights(): void {
         const light = new DirectionalLight("dirLight", new Vector3(-1, -2, -1), this.scene);
         light.position = new Vector3(20, 40, 20);
@@ -101,9 +111,11 @@ export class GameScene {
 
     private async _initLevel(levelId: LevelId): Promise<void> {
         const levelMeshes = this._buildLevel(levelId);
-
-        this.player = new Player(this.scene, this._inputManager, this._shadowGenerator, this._ui);
+        this._createPlayer()
+        this._createEnemy();
         this._setupNavMesh(levelMeshes);
+
+        // 4. Setup de la foule (Crowd)
         this._setupCrowd();
         this._setupPointerEvents();
         this.scene.onBeforeRenderObservable.add(() => this._updateAgents());
@@ -331,4 +343,17 @@ export class GameScene {
             }
         });
     }
+
+    private async _createPlayer(): Promise<void> 
+    {
+        console.log("Creating player...");
+        this.player = new Player(this.scene, this._inputManager, this._shadowGenerator, this._ui);
+    }
+
+    private async _createEnemy(): Promise<void> {
+        console.log("Creating enemy...");
+        new AISoldier(this.scene, this._shadowGenerator, this._ui);
+    }
+
+
 }

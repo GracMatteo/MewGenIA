@@ -41,31 +41,53 @@ export abstract class Entity
     abstract fixedUpdate(input?: any) : void;
 
     //hover entity logique
-    onHoverHighlight() 
-    {
+    onHoverHighlight() {
         if (this.visualMeshes.length === 0) {
             console.warn("Visual meshes not loaded yet");
             return;
         }
 
         if(!this.mesh) console.warn("Mesh not loaded yet");
-            this.mesh!.actionManager = new ActionManager(this.scene);
-            this.mesh!.actionManager.registerAction(
-                new ExecuteCodeAction(ActionManager.OnPointerOverTrigger, () => {
-                    this.mesh!.renderOutline = true;
-                    this.mesh!.outlineColor = new Color3(0.8,0.8, 0.8); //gris clair
-                    this.displayInfo(); 
-                }));
+        this.mesh!.actionManager = new ActionManager(this.scene);
+        this.mesh!.actionManager.registerAction(
+            new ExecuteCodeAction(ActionManager.OnPointerOverTrigger, () => {
+                this.mesh!.renderOutline = true;
+                this.mesh!.outlineColor = new Color3(0.8,0.8, 0.8); //gris clair
+                this.displayInfo(); 
+        }));
         
-            this.mesh!.actionManager.registerAction(
-                new ExecuteCodeAction(ActionManager.OnPointerOutTrigger, () => {
-                this.mesh!.renderOutline = false;
-                if(this.hoverUIPanel){
-                    this.hoverUIPanel.dispose();
-                }
+        this.mesh!.actionManager.registerAction(
+            new ExecuteCodeAction(ActionManager.OnPointerOutTrigger, () => {
+            this.mesh!.renderOutline = false;
+            if(this.hoverUIPanel){
+                this.hoverUIPanel.dispose();
+            }
                 
         }));
-    }
+    
+
+
+
+    // Hover sur le collider -> outline sur les meshes visuels
+    this.mesh!.actionManager.registerAction(
+        new ExecuteCodeAction(ActionManager.OnPointerOverTrigger, () => {
+            this.visualMeshes.forEach(m => {
+                m.renderOutline = true;
+                m.outlineColor = new Color3(0.8, 0.8, 0.8);
+            });
+        })
+    );
+
+    this.mesh!.actionManager.registerAction(
+        new ExecuteCodeAction(ActionManager.OnPointerOutTrigger, () => {
+            this.visualMeshes.forEach(m => {
+                m.renderOutline = false;
+            });
+            if (this.hoverUIPanel) {
+                this.hoverUIPanel.dispose();
+            }
+        })
+    );}
 
     //affiche les infos de l'entité dans une UI
     displayInfo()
