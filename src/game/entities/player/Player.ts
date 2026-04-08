@@ -38,6 +38,8 @@ export class Player extends Entity
     async init()
     {   
         const result = await ImportMeshAsync("/models/player.glb", this.scene);
+        const playerVisualRoot = result.meshes[0];
+        playerVisualRoot.name = "playerVisualRoot"; // Supposons que le root du modèle soit le premier mesh
         this.visualMeshes = result.meshes;
         this.visualMeshes.forEach(m => 
         {
@@ -49,17 +51,32 @@ export class Player extends Entity
         this.mesh = MeshBuilder.CreateCapsule("player_collider", { height: 2, radius: 0.5 }, this.scene);
         this.mesh.isVisible = true;
         this.mesh.visibility = 0.3;
-        this.mesh.position.y = 1; // pour que le bas du collider soit au sol
-
+        this.mesh.position.y = 3; // pour que le bas du collider soit au sol
+        this.mesh.position.x = 0;
         // Le mesh visuel suit le collider
         this.scene.registerBeforeRender(() => {
             this.visualMeshes[0].position.copyFrom(this.mesh!.position);
+            /*
+            const velocity = this.capsuleAggregate.body.getLinearVelocity();
+            const planarVelocity = new Vector3(velocity.x, 0, velocity.z);
+
+            if (planarVelocity.length() > 0.1) {
+                planarVelocity.normalize();
+                const desiredRotation = Math.atan2(planarVelocity.x, planarVelocity.z);
+                this.visualMeshes[0].rotation.y += (desiredRotation - this.visualMeshes[0].rotation.y) * 0.15;
+            }
+            */
+            // rotation pour tester le suivi
             this.visualMeshes[0].position.y -= 1; // offset pour centrer le mesh dans la capsule
         });
 
         this.capsuleAggregate = new PhysicsAggregate(this.mesh, PhysicsShapeType.CAPSULE, { mass: 1, restitution: 0 }, this.scene);
         this.capsuleAggregate.body.setMotionType(PhysicsMotionType.DYNAMIC);
-        //this.capsuleAggregate.body.setCollisionCallbackEnabled(true);
+        this.capsuleAggregate.body.setMassProperties({
+            inertia: Vector3.Zero()
+        });
+        this.capsuleAggregate.body.setAngularDamping(0.95);
+        this.capsuleAggregate.body.setAngularVelocity(Vector3.Zero());
 
         this.info = {
             name : "Player",
@@ -126,15 +143,17 @@ export class Player extends Entity
         }
 
         const currentPosition = this.mesh.position;
+        console.log("target: position = ", target);
         const direction = target.subtract(currentPosition);
         direction.y = 0;
-
+        console.log("Direction to target: ", direction);
         const distance = direction.length();
         const currentVelocity = this.capsuleAggregate.body.getLinearVelocity();
+        //console.log("Current velocity: ", currentVelocity);
         const verticalVelocity = currentVelocity?.y ?? 0;
 
         if (distance <= Player.MOVE_STOP_DISTANCE) {
-            this.capsuleAggregate.body.setLinearVelocity(new Vector3(0, verticalVelocity, 0));
+            this.capsuleAggregate.body.setLinearVelocity(new Vector3(0, 0, 0));
             return;
         }
 

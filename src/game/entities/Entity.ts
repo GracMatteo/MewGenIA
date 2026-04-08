@@ -41,7 +41,7 @@ export abstract class Entity
     abstract fixedUpdate(input?: any) : void;
 
     //hover entity logique
-    onHoverHighlight() 
+    onHoverHighlight()
     {
         if (this.visualMeshes.length === 0) {
             console.warn("Visual meshes not loaded yet");

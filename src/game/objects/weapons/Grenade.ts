@@ -6,21 +6,21 @@ import { Object } from "../Object";
 export class Grenade extends Object {
 
     SphereAggregate: any;
+    isActivated: boolean = false;
 
-
-    constructor(scene: Scene, uiTexture: AdvancedDynamicTexture, shadowGenerator: ShadowGenerator) {
-        super("grenade", scene, uiTexture, shadowGenerator);
+    constructor(scene: Scene, uiTexture: AdvancedDynamicTexture, shadowGenerator: ShadowGenerator, modelName : string,) {
+        super(modelName, scene, uiTexture, shadowGenerator);
         
     }
 
     async init(): Promise<void> {
-        this.mesh =  MeshBuilder.CreateSphere("grenade", { diameter: 0.7 }, this.scene);
-        this.mesh.position.y = 1;
+        this.mesh =  MeshBuilder.CreateSphere(this.modelName, { diameter: 0.7 }, this.scene);
+        this.mesh.position.y = 15;
         this.mesh.visibility = 0.1;
         
-        this.visualMeshes[0] = MeshBuilder.CreateSphere("grenadeVisual", { diameter: 0.5 }, this.scene);
+        this.visualMeshes[0] = MeshBuilder.CreateSphere(this.modelName + "Visual", { diameter: 0.5 }, this.scene);
         this.visualMeshes[0].position.copyFrom(this.mesh.position);
-        this.visualMeshes[0].isPickable = false;
+        this.visualMeshes[0].isPickable = true;
 
         const material = new StandardMaterial("grenadeMat", this.scene);
         material.diffuseColor = new Color3(0.2, 0.8, 0.2);
@@ -31,9 +31,15 @@ export class Grenade extends Object {
             this.visualMeshes[0].position.copyFrom(this.mesh!.position);
         });
         
-        this.SphereAggregate = new PhysicsAggregate(this.mesh, PhysicsShapeType.SPHERE, { mass: 0.1, restitution: 0 }, this.scene);
+        this.SphereAggregate = new PhysicsAggregate(this.mesh, PhysicsShapeType.SPHERE, { mass: 0.1, restitution: 0.8 }, this.scene);
         this.SphereAggregate.body.setMotionType(PhysicsMotionType.DYNAMIC);
-             
+
+        this.info = {
+            name: "Grenade",
+            description: "objet explosif à lancer"
+        };
+        
+        this.onHoverHighlight();
     }
 
     update(_input?: any): void {

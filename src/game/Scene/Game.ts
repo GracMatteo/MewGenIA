@@ -104,13 +104,17 @@ export class GameScene {
     private async _initLevel(levelId: LevelId): Promise<void> {
         const levelMeshes = this._buildLevel(levelId);
 
-        const grenade = new Grenade(this.scene, this._ui, this._shadowGenerator);
-        await grenade.init();
-        grenade.mesh!.position.set(5, 1, 5);
-        this._objects.push(grenade);
+        let nbGrenades = 10;
+        for (let i = 0; i < nbGrenades; i++) {
+            const grenade = new Grenade(this.scene, this._ui, this._shadowGenerator,"grenade_" + i);
+            await grenade.init();
+            grenade.mesh!.position.set(0, 4 + i, 0);
+            this._objects.push(grenade);
+        }
 
 
         this.player = new Player(this.scene, this._inputManager, this._shadowGenerator, this._ui);
+        //this.player.mesh!.position.set(0,10,0);
         this._setupNavMesh(levelMeshes);
         this._setupCrowd();
         this._setupPointerEvents();
@@ -148,22 +152,158 @@ export class GameScene {
 
     private _buildTestingGround(): Mesh[] {
         const ground = this._createGround("testing_ground", 120, 120);
+        const testMeshes: Mesh[] = [ground];
 
-        const centralBlock = MeshBuilder.CreateBox(
-            "testing_central_block",
-            { width: 8, height: 3, depth: 8 },
+        const registerStaticMesh = (mesh: Mesh, shape: PhysicsShapeType = PhysicsShapeType.BOX): Mesh => {
+            this._makeStaticCollider(mesh, shape);
+            testMeshes.push(mesh);
+            return mesh;
+        };
+
+
+        const longRamp = MeshBuilder.CreateBox(
+            "testing_long_ramp",
+            { width: 10, height: 1.2, depth: 18 },
             this.scene
         );
-        centralBlock.position = new Vector3(-10, 1.5, 0);
+        longRamp.position = new Vector3(16, 0, -10);
+        longRamp.rotation.z = Math.PI / 8;
+        registerStaticMesh(longRamp);
 
-        const ramp = MeshBuilder.CreateBox("testing_ramp", { width: 6, height: 1, depth: 18 }, this.scene);
-        ramp.position = new Vector3(18, 0, -8);
-        ramp.rotation.z = Math.PI / 10;
+        const steepRamp = MeshBuilder.CreateBox(
+            "testing_steep_ramp",
+            { width: 8, height: 1.2, depth: 12 },
+            this.scene
+        );
+        steepRamp.position = new Vector3(28, 2.8, 10);
+        steepRamp.rotation.z = Math.PI / 5;
+        registerStaticMesh(steepRamp);
 
-        const sideCover = MeshBuilder.CreateBox("testing_side_cover", { width: 5, height: 5, depth: 5 }, this.scene);
-        sideCover.position = new Vector3(-20, 2.5, -15);
+        for (let i = 0; i < 5; i++) {
+            const stair = MeshBuilder.CreateBox(
+                `testing_stair_${i}`,
+                { width: 6, height: 1, depth: 3 },
+                this.scene
+            );
+            stair.position = new Vector3(-24 + i * 3, 0.5 + i, 18);
+            registerStaticMesh(stair);
+        }
 
-        return [ground, centralBlock, ramp, sideCover];
+        const tunnelLeft = MeshBuilder.CreateBox(
+            "testing_tunnel_left",
+            { width: 2, height: 4, depth: 10 },
+            this.scene
+        );
+        tunnelLeft.position = new Vector3(-24, 2, -18);
+        registerStaticMesh(tunnelLeft);
+
+        const tunnelRight = MeshBuilder.CreateBox(
+            "testing_tunnel_right",
+            { width: 2, height: 4, depth: 10 },
+            this.scene
+        );
+        tunnelRight.position = new Vector3(-16, 2, -18);
+        registerStaticMesh(tunnelRight);
+
+        const tunnelRoof = MeshBuilder.CreateBox(
+            "testing_tunnel_roof",
+            { width: 10, height: 1.5, depth: 10 },
+            this.scene
+        );
+        tunnelRoof.position = new Vector3(-20, 4.75, -18);
+        registerStaticMesh(tunnelRoof);
+
+        const sideWallA = MeshBuilder.CreateBox(
+            "testing_side_wall_a",
+            { width: 3, height: 4, depth: 20 },
+            this.scene
+        );
+        sideWallA.position = new Vector3(-36, 2, 0);
+        registerStaticMesh(sideWallA);
+
+        const sideWallB = MeshBuilder.CreateBox(
+            "testing_side_wall_b",
+            { width: 3, height: 4, depth: 20 },
+            this.scene
+        );
+        sideWallB.position = new Vector3(36, 2, 0);
+        registerStaticMesh(sideWallB);
+
+        const diagonalWall = MeshBuilder.CreateBox(
+            "testing_diagonal_wall",
+            { width: 3, height: 4, depth: 22 },
+            this.scene
+        );
+        diagonalWall.position = new Vector3(6, 2, 26);
+        diagonalWall.rotation.y = Math.PI / 4;
+        registerStaticMesh(diagonalWall);
+
+        const crossBlockA = MeshBuilder.CreateBox(
+            "testing_cross_block_a",
+            { width: 5, height: 5, depth: 5 },
+            this.scene
+        );
+        crossBlockA.position = new Vector3(-6, 2.5, -30);
+        registerStaticMesh(crossBlockA);
+
+        const crossBlockB = MeshBuilder.CreateBox(
+            "testing_cross_block_b",
+            { width: 5, height: 7, depth: 5 },
+            this.scene
+        );
+        crossBlockB.position = new Vector3(6, 3.5, -30);
+        registerStaticMesh(crossBlockB);
+
+        const narrowPillar = MeshBuilder.CreateCylinder(
+            "testing_narrow_pillar",
+            { diameter: 2.5, height: 8, tessellation: 18 },
+            this.scene
+        );
+        narrowPillar.position = new Vector3(22, 4, 24);
+        registerStaticMesh(narrowPillar, PhysicsShapeType.CYLINDER);
+
+        const widePillar = MeshBuilder.CreateCylinder(
+            "testing_wide_pillar",
+            { diameter: 5, height: 5, tessellation: 18 },
+            this.scene
+        );
+        widePillar.position = new Vector3(-28, 2.5, 28);
+        registerStaticMesh(widePillar, PhysicsShapeType.CYLINDER);
+
+        const lowBridge = MeshBuilder.CreateBox(
+            "testing_low_bridge",
+            { width: 14, height: 1.5, depth: 6 },
+            this.scene
+        );
+        lowBridge.position = new Vector3(0, 3.5, 36);
+        registerStaticMesh(lowBridge);
+
+        const bridgeSupportLeft = MeshBuilder.CreateBox(
+            "testing_bridge_support_left",
+            { width: 2, height: 5, depth: 2 },
+            this.scene
+        );
+        bridgeSupportLeft.position = new Vector3(-5, 2.5, 36);
+        registerStaticMesh(bridgeSupportLeft);
+
+        const bridgeSupportRight = MeshBuilder.CreateBox(
+            "testing_bridge_support_right",
+            { width: 2, height: 5, depth: 2 },
+            this.scene
+        );
+        bridgeSupportRight.position = new Vector3(5, 2.5, 36);
+        registerStaticMesh(bridgeSupportRight);
+
+        const wedge = MeshBuilder.CreateBox(
+            "testing_wedge",
+            { width: 6, height: 1, depth: 10 },
+            this.scene
+        );
+        wedge.position = new Vector3(30, 0.9, -28);
+        wedge.rotation.x = Math.PI / 9;
+        registerStaticMesh(wedge);
+
+        return testMeshes;
     }
 
     private _createGround(name: string, width: number, height: number): Mesh {
@@ -175,6 +315,19 @@ export class GameScene {
 
         return ground;
     }
+
+    private _makeStaticCollider(mesh: Mesh, shape: PhysicsShapeType = PhysicsShapeType.BOX): void {
+    mesh.computeWorldMatrix(true);
+
+    const aggregate = new PhysicsAggregate(
+        mesh,
+        shape,
+        { mass: 0, friction: 0.8, restitution: 0 },
+        this.scene
+    );
+
+    aggregate.body.setMotionType(PhysicsMotionType.STATIC);
+}
 
     private _setupNavMesh(meshes: Mesh[]): void {
         const navmeshParameters = {
