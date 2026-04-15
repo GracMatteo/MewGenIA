@@ -5,8 +5,8 @@ import type { ObjectInfo } from "./ObjectInfo";
 export abstract class Object {
     
     public mesh : AbstractMesh | undefined;
-    protected visualMeshes: AbstractMesh[] = [];
-    protected aggregate : PhysicsAggregate | undefined;
+    public visualMeshes: AbstractMesh[] = [];
+    public aggregate : PhysicsAggregate | undefined;
     protected shadowGenerator : ShadowGenerator;
     protected scene : Scene;
     protected modelPath : string;

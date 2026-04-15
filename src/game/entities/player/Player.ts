@@ -17,6 +17,7 @@ import { Entity } from "../Entity";
 import { AdvancedDynamicTexture } from "@babylonjs/gui";
 import { Action, type InputManager } from "../../InputManager";
 import "@babylonjs/loaders/glTF";
+import { Inventory } from "../Inventory";
 
 export class Player extends Entity
 {
@@ -27,11 +28,13 @@ export class Player extends Entity
     transform!: Mesh;
     capsuleAggregate: any;
     inputs: InputManager;
+    Inventory: any;
 
     constructor(scene: Scene, inputManager: InputManager, shadowGenerator: ShadowGenerator, uiTexture: AdvancedDynamicTexture)
     {
         super("player", scene, shadowGenerator, uiTexture);
         this.inputs = inputManager;
+        this.Inventory = new Inventory();
         this.init();
 
         this.scene.onBeforeRenderObservable.add(() => {
@@ -92,6 +95,8 @@ export class Player extends Entity
             name: "Player",
             description: "This is the player character."
         };
+
+
 
         this.onHoverHighlight();
         this.selected();
