@@ -15,7 +15,6 @@ import {
     ShadowGenerator,
     StandardMaterial,
     Texture,
-    TransformNode,
     Vector3
 } from "@babylonjs/core";
 import { AdvancedDynamicTexture } from "@babylonjs/gui";
@@ -26,6 +25,10 @@ import { Player } from "../entities/player/Player";
 import { Grenade } from "../objects/weapons/Grenade";
 
 export class GameScene {
+    private static readonly PLAYER_NAV_SPEED = 6;
+    private static readonly WAYPOINT_REACHED_DISTANCE = 0.45;
+    private static readonly MAX_PATH_SEGMENT_LENGTH = 2;
+
     public scene: Scene;
     public player!: Player;
 
@@ -36,13 +39,13 @@ export class GameScene {
     private _onReturnToMenu: () => void;
 
     private _navigationPlugin!: RecastJSPlugin;
-    private _crowd: any;
     private _ui!: AdvancedDynamicTexture;
     private _shadowGenerator!: ShadowGenerator;
     private _inputManager: InputManager;
     private _camera!: FreeCamera;
     private _pathLine: Mesh | null = null;
-    private _agents: any[] = [];
+    private _activePath: Vector3[] = [];
+    private _activePathIndex = 0;
     private _objects: Object[] = [];
 
     constructor(
@@ -116,14 +119,19 @@ export class GameScene {
         this.player = new Player(this.scene, this._inputManager, this._shadowGenerator, this._ui);
         //this.player.mesh!.position.set(0,10,0);
         this._setupNavMesh(levelMeshes);
-        this._setupCrowd();
         this._setupPointerEvents();
-        this.scene.onBeforeRenderObservable.add(() => this._updateAgents());
+        this.scene.onBeforeRenderObservable.add(() => this._updatePlayerNavigation());
     }
 
     private _setupMenuShortcut(): void {
         this._inputManager.onActionTriggered(Action.MENU, () => {
+            this._clearPath();
             this._onReturnToMenu();
+        });
+
+        this._inputManager.onActionTriggered(Action.STOPNAV, () => {
+            this._clearPath();
+            this.player?.stopMovement();
         });
     }
 
@@ -356,31 +364,6 @@ export class GameScene {
         debugMesh.material = mat;
     }
 
-    private _setupCrowd(): void {
-        this._crowd = this._navigationPlugin.createCrowd(10, 0.1, this.scene);
-
-        const agentParams = {
-            radius: 0.1,
-            height: 2,
-            maxAcceleration: 99999.0,
-            maxSpeed: 6.0,
-            collisionQueryRange: 0.5,
-            pathOptimizationRange: 0.0,
-            separationWeight: 1.0
-        };
-
-        const randomPos = this._navigationPlugin.getRandomPointAround(new Vector3(-2, 0.1, -2), 0.5);
-        const transform = new TransformNode("agent_transform");
-        const agentIndex = this._crowd.addAgent(randomPos, agentParams, transform);
-
-        this._agents.push({
-            idx: agentIndex,
-            trf: transform,
-            mesh: this.player.mesh,
-            target: MeshBuilder.CreateBox("target", { size: 0.1 }, this.scene)
-        });
-    }
-
     private _setupPointerEvents(): void {
         this.scene.onPointerObservable.add((pointerInfo) => {
             if (pointerInfo.type !== PointerEventTypes.POINTERDOWN || pointerInfo.event.button !== 0) {
@@ -398,25 +381,55 @@ export class GameScene {
 
             const destination = pickInfo.pickedPoint!;
             this._createClickFeedback(destination);
+            const rawPath = this._navigationPlugin.computePath(
+                this._navigationPlugin.getClosestPoint(this.player.mesh!.position),
+                this._navigationPlugin.getClosestPoint(destination)
+            );
+            const segmentedPath = this._segmentPath(rawPath);
 
-            const agents = this._crowd.getAgents();
-            for (let i = 0; i < agents.length; i++) {
-                const closestNavPoint = this._navigationPlugin.getClosestPoint(destination);
-                this._crowd.agentGoto(agents[i], closestNavPoint);
-                this._drawPath(this.player.mesh!.position, closestNavPoint);
+            if (segmentedPath.length > 1) {
+                this._activePath = segmentedPath;
+                this._activePathIndex = 1;
+                this._drawPath(segmentedPath);
+            } else {
+                this._clearPath();
+                this.player.stopMovement();
             }
         });
     }
 
-    private _drawPath(start: Vector3, end: Vector3): void {
-        const pathPoints = this._navigationPlugin.computePath(
-            this._navigationPlugin.getClosestPoint(start),
-            end
-        );
-
-        if (this._pathLine) {
-            this._pathLine.dispose();
+    private _segmentPath(pathPoints: Vector3[]): Vector3[] {
+        if (!pathPoints || pathPoints.length === 0) {
+            return [];
         }
+
+        const segmentedPath: Vector3[] = [pathPoints[0].clone()];
+
+        for (let i = 1; i < pathPoints.length; i++) {
+            const segmentStart = pathPoints[i - 1];
+            const segmentEnd = pathPoints[i];
+            const segmentLength = Vector3.Distance(segmentStart, segmentEnd);
+
+            if (segmentLength === 0) {
+                continue;
+            }
+
+            const stepCount = Math.max(
+                1,
+                Math.ceil(segmentLength / GameScene.MAX_PATH_SEGMENT_LENGTH)
+            );
+
+            for (let step = 1; step <= stepCount; step++) {
+                segmentedPath.push(Vector3.Lerp(segmentStart, segmentEnd, step / stepCount));
+            }
+        }
+
+        return segmentedPath;
+    }
+
+    private _drawPath(pathPoints: Vector3[]): void {
+        this._pathLine?.dispose();
+        this._pathLine = null;
 
         if (pathPoints && pathPoints.length > 1) {
             this._pathLine = MeshBuilder.CreateDashedLines(
@@ -466,33 +479,50 @@ export class GameScene {
         animate();
     }
 
-    private _updateAgents(): void {
-        this._agents.forEach((ag) => {
-            if (!ag.mesh && this.player && this.player.mesh) {
-                ag.mesh = this.player.mesh;
+    private _clearPath(): void {
+        this._activePath = [];
+        this._activePathIndex = 0;
+        this._pathLine?.dispose();
+        this._pathLine = null;
+    }
+
+    private _updatePlayerNavigation(): void {
+        if (!this.player?.mesh || this._activePathIndex >= this._activePath.length) {
+            return;
+        }
+
+        while (this._activePathIndex < this._activePath.length) {
+            const waypoint = this._activePath[this._activePathIndex];
+            const physicsTarget = new Vector3(
+                waypoint.x,
+                this.player.mesh.position.y,
+                waypoint.z
+            );
+            const planarDistance = Vector3.Distance(
+                new Vector3(this.player.mesh.position.x, 0, this.player.mesh.position.z),
+                new Vector3(physicsTarget.x, 0, physicsTarget.z)
+            );
+
+            if (planarDistance <= GameScene.WAYPOINT_REACHED_DISTANCE) {
+                this._activePathIndex++;
+                continue;
             }
 
-            if (!ag.mesh) {
-                return;
+            this.player.moveToward(physicsTarget, GameScene.PLAYER_NAV_SPEED);
+
+            const direction = physicsTarget.subtract(this.player.mesh.position);
+            direction.y = 0;
+            if (direction.lengthSquared() > 0.001) {
+                direction.normalize();
+                const desiredRotation = Math.atan2(direction.x, direction.z);
+                this.player.mesh.rotation.y +=
+                    (desiredRotation - this.player.mesh.rotation.y) * 0.15;
             }
 
-            const agentPos = this._crowd.getAgentPosition(ag.idx);
-            const physicsTarget = new Vector3(agentPos.x, ag.mesh.position.y, agentPos.z);
-            this.player.moveToward(physicsTarget, 6);
+            return;
+        }
 
-            const vel = this._crowd.getAgentVelocity(ag.idx);
-            if (vel.length() > 0.2) {
-                vel.normalize();
-                const desiredRotation = Math.atan2(vel.x, vel.z);
-                ag.mesh.rotation.y = ag.mesh.rotation.y + (desiredRotation - ag.mesh.rotation.y) * 0.15;
-            } else {
-                this.player.stopMovement();
-            }
-
-            if (vel.length() < 0.1 && this._pathLine) {
-                this._pathLine.dispose();
-                this._pathLine = null;
-            }
-        });
+        this.player.stopMovement();
+        this._clearPath();
     }
 }

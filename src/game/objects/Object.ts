@@ -69,6 +69,7 @@ export abstract class Object {
         panel.alpha = 0.7;
         panel.cornerRadius = 5;
 
+        this.hoverUIPanel = panel;
          // Créer le texte pour le nom (Titre)
         const nameText = new TextBlock("nameText", this.info.name);
         nameText.color = "#FFD700"; // Doré
@@ -85,8 +86,8 @@ export abstract class Object {
         if (rootMesh) 
         {
             this.hoverUIPanel.linkWithMesh(rootMesh);
-            this.hoverUIPanel.linkOffsetX = 150;
-            this.hoverUIPanel.linkOffsetY = 50;
+            this.hoverUIPanel.linkOffsetX = 30;
+            this.hoverUIPanel.linkOffsetY = 20;
         }
     }
 

@@ -71,7 +71,7 @@ export abstract class Entity
     displayInfo()
     {
         //Créer le conteneur principal (le fond de la carte)
-        this.hoverUIPanel = new Rectangle("hoverInfoRect");
+        this.hoverUIPanel = new Rectangle("hoverInfoRectv");
         this.hoverUIPanel.width = "150px";
         this.hoverUIPanel.height = "300px";
         this.hoverUIPanel.background = "rgba(30, 30, 30, 0.8)"; // Fond sombre semi-transparent

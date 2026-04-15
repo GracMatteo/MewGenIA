@@ -31,7 +31,7 @@ export class Grenade extends Object {
             this.visualMeshes[0].position.copyFrom(this.mesh!.position);
         });
         
-        this.SphereAggregate = new PhysicsAggregate(this.mesh, PhysicsShapeType.SPHERE, { mass: 0.1, restitution: 0.8 }, this.scene);
+        this.SphereAggregate = new PhysicsAggregate(this.mesh, PhysicsShapeType.SPHERE, { mass: 1, restitution: 0.2, friction: 0.2 }, this.scene);
         this.SphereAggregate.body.setMotionType(PhysicsMotionType.DYNAMIC);
 
         this.info = {

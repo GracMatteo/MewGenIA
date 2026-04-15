@@ -18,7 +18,7 @@ import "@babylonjs/loaders/glTF"; // Assure que le loader GLTF est inclus pour c
 
 export class Player extends Entity
 {   
-    private static readonly MOVE_STOP_DISTANCE = 0.35;
+    private static readonly MOVE_STOP_DISTANCE = 0.15;
 
     transform! : Mesh;
     capsuleAggregate: any;
@@ -70,7 +70,7 @@ export class Player extends Entity
             this.visualMeshes[0].position.y -= 1; // offset pour centrer le mesh dans la capsule
         });
 
-        this.capsuleAggregate = new PhysicsAggregate(this.mesh, PhysicsShapeType.CAPSULE, { mass: 1, restitution: 0 }, this.scene);
+        this.capsuleAggregate = new PhysicsAggregate(this.mesh, PhysicsShapeType.CAPSULE, { mass: 10, restitution: 0,friction: 0.5 }, this.scene);
         this.capsuleAggregate.body.setMotionType(PhysicsMotionType.DYNAMIC);
         this.capsuleAggregate.body.setMassProperties({
             inertia: Vector3.Zero()
@@ -185,7 +185,7 @@ export class Player extends Entity
     disselected(){
         if (this.isSelected) {
             this.isSelected = false;
-            console.log("Joueur désélectionné (Touche Echap)");
+            console.log("Joueur désélectionné");
         }       
     }
 
