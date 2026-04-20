@@ -44,11 +44,12 @@ class App {
         });
 
         this._levelManager.goToMainMenu();
+        this._initDebug();
         window.addEventListener("resize", () => this._engine.resize());
     }
 
 
-    private _initDebug(scene: Scene, gameInstance: GameScene): void {
+    private _initDebug(): void {
         window.addEventListener("keydown", (event) => {
             const scene = this._levelManager.currentScene;
             if (!scene || event.key !== "v") {
