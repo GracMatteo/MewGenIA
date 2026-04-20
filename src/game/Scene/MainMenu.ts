@@ -16,6 +16,7 @@ export class MainMenu {
 
     private _gui: AdvancedDynamicTexture;
     private _levels: LevelDefinition[];
+    onPlayPressed: (() => void) | undefined;
 
     constructor(engine: Engine, levels: LevelDefinition[]) {
         this.scene = new Scene(engine);

@@ -18,6 +18,8 @@ import { AdvancedDynamicTexture } from "@babylonjs/gui";
 import { Action, type InputManager } from "../../InputManager";
 import "@babylonjs/loaders/glTF";
 import { Inventory } from "../Inventory";
+import "@babylonjs/loaders/glTF"; // Assure que le loader GLTF est inclus pour charger les modèles .glb
+import { AssetManager } from "../../AssetManager";
 
 export class Player extends Entity
 {
@@ -95,7 +97,6 @@ export class Player extends Entity
             name: "Player",
             description: "This is the player character."
         };
-
 
 
         this.onHoverHighlight();
@@ -186,7 +187,7 @@ export class Player extends Entity
         this.capsuleAggregate.body.setLinearVelocity(new Vector3(0, currentVelocity?.y ?? 0, 0));
     }
 
-    selected()
+    selected() 
     {
         this.mesh!.actionManager!.registerAction(
             new ExecuteCodeAction(ActionManager.OnLeftPickTrigger, () => {
