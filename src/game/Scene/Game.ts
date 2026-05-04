@@ -78,10 +78,9 @@ export class GameScene {
             Texture.BILINEAR_SAMPLINGMODE,
             true
         );
-        this._ui = AdvancedDynamicTexture.CreateFullscreenUI("GameUI", true, this.scene, Texture.BILINEAR_SAMPLINGMODE, true);
+        //this._ui = AdvancedDynamicTexture.CreateFullscreenUI("GameUI", true, this.scene, Texture.BILINEAR_SAMPLINGMODE, true);
         // 3. Environnement
-        this._setupLights();
-        this._createGround("ground", 200, 200);
+        //this._createGround("ground", 200, 200);
         
         // 4. Entités
         this._setupLights();
@@ -126,13 +125,11 @@ export class GameScene {
         }
 
 
-        this.player = new Player(this.scene, this._inputManager, this._shadowGenerator, this._ui);
+        //this.player = new Player(this.scene, this._inputManager, this._shadowGenerator, this._ui);
         //this.player.mesh!.position.set(0,10,0);
         this._setupNavMesh(levelMeshes);
         this._createPlayer()
         this._createEnemy();
-        this._setupNavMesh(levelMeshes);
-
         // 4. Setup de la foule (Crowd)
         //this._setupCrowd();
         this._setupPointerEvents();

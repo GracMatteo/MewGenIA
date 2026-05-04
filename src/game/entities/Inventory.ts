@@ -17,6 +17,14 @@ export class Inventory {
         console.log(`Added ${item.itemName} to inventory.`);
     }
 
+    getItem(itemName: string): Collectable | undefined {
+        return this.items.get(itemName);
+    }
+
+    getItems(): Collectable[] {
+        return Array.from(this.items.values());
+    }
+
     removeItem(itemName: string): void {
         if (!this.items.has(itemName)) {
             console.warn(`Item ${itemName} not found in inventory.`);

@@ -40,7 +40,7 @@ export class Player extends Entity
         this.init();
 
         this.scene.onBeforeRenderObservable.add(() => {
-            this._handleInputs();
+            //this._handleInputs();
         });
     }
 
@@ -98,7 +98,7 @@ export class Player extends Entity
             description: "This is the player character."
         };
 
-
+        this.displayInventory();
         this.onHoverHighlight();
         this.selected();
     }
@@ -113,6 +113,7 @@ export class Player extends Entity
 
     }
 
+    //mieux avec les trigger et les observables de babylon (a voir pour les inputs de manière générale)
     private _handleInputs()
     {
         if (this.inputs.isActionActive(Action.ZOOM_IN))
@@ -158,10 +159,10 @@ export class Player extends Entity
         }
 
         const currentPosition = this.mesh.position;
-        console.log("target: position = ", target);
+        //console.log("target: position = ", target);
         const direction = target.subtract(currentPosition);
         direction.y = 0;
-        console.log("Direction to target: ", direction);
+        //console.log("Direction to target: ", direction);
         const distance = direction.length();
         const currentVelocity = this.capsuleAggregate.body.getLinearVelocity();
         const verticalVelocity = currentVelocity?.y ?? 0;
@@ -203,5 +204,13 @@ export class Player extends Entity
             this.isSelected = false;
             console.log("Joueur deselectionne");
         }
+    }
+
+    displayInventory()
+    {
+        console.log("Inventory opened");
+        this.inputs.onActionTriggered(Action.INVENTORY, () => {
+            console.log("Inventory action triggered");
+        });
     }
 }
