@@ -38,6 +38,7 @@ export class Player extends Entity
     inputs: InputManager;
     Inventory: any;
     public readonly playerClass: PlayerClass;
+    public readonly ready: Promise<void>;
 
     constructor(
         scene: Scene,
@@ -51,7 +52,7 @@ export class Player extends Entity
         this.inputs = inputManager;
         this.Inventory = new Inventory();
         this.playerClass = getPlayerClass(playerClassId);
-        this.init();
+        this.ready = this.init();
 
         this.scene.onBeforeRenderObservable.add(() => {
             this._handleInputs();

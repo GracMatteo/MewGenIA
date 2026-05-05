@@ -78,7 +78,7 @@ export class LevelManager {
 
         const classSelection = new PlayerClassSelectionScene(this._engine, selectedLevel);
         classSelection.onClassSelected = (playerClassId) => {
-            this.loadLevel(levelId, playerClassId);
+            void this.loadLevel(levelId, playerClassId);
         };
         classSelection.onBackRequested = () => this.goToMainMenu();
 
@@ -88,12 +88,13 @@ export class LevelManager {
         this._selectedPlayerClassId = null;
     }
 
-    public loadLevel(levelId: LevelId, playerClassId: PlayerClassId = DEFAULT_PLAYER_CLASS_ID): void {
+    public async loadLevel(levelId: LevelId, playerClassId: PlayerClassId = DEFAULT_PLAYER_CLASS_ID): Promise<void> {
         const selectedLevel = LEVEL_CATALOG.find((level) => level.id === levelId);
         if (!selectedLevel) {
             throw new Error(`Unknown level id: ${levelId}`);
         }
 
+        this._engine.loadingScreen.loadingUIText = "Chargement du niveau...";
         this._engine.displayLoadingUI();
         try {
             this._disposeCurrentScene();
@@ -106,6 +107,8 @@ export class LevelManager {
                 playerClassId,
                 () => this.goToMainMenu()
             );
+
+            await game.ready;
 
             this._currentScene = game.scene;
             this._currentState = GameState.IN_GAME;

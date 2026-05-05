@@ -19,7 +19,7 @@ export const PLAYER_CLASSES: Record<PlayerClassId, PlayerClass> = {
     soldier: {
         id: "soldier",
         name: "Cyborg",
-        description: "Un archetype equilibre, fiable dans toutes les situations.",
+        description: "When man and machine merge, you get the cyborg. A balanced class with decent durability, attack power, and accuracy. Not the fastest, but reliable in combat.",
         modelPath: "/models/player.glb",
         stats: {
             hp: 120,
@@ -30,8 +30,8 @@ export const PLAYER_CLASSES: Record<PlayerClassId, PlayerClass> = {
     },
     scout: {
         id: "scout",
-        name: "Eclaireur",
-        description: "Rapide et precis, mais plus fragile.",
+        name: "Soldier",
+        description: "The strength of mankind, instinctive and versatile, but less durable and precise than the other classes.",
         modelPath: "/models/player.glb",
         stats: {
             hp: 85,
@@ -43,7 +43,7 @@ export const PLAYER_CLASSES: Record<PlayerClassId, PlayerClass> = {
     guardian: {
         id: "guardian",
         name: "Terminator",
-        description: "Resistant et puissant, mais plus lent et moins precis.",
+        description: "A heavily armored class, slow but with high durability and powerful attacks. Less accurate due to its bulk.",
         modelPath: "/models/player.glb",
         stats: {
             hp: 170,

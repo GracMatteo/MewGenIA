@@ -141,7 +141,7 @@ export class PlayerClassSelectionScene {
     }
 
     private _createUI(): void {
-        const title = new TextBlock("classSelectionTitle", `Classe - ${this._level.label}`);
+        const title = new TextBlock("classSelectionTitle", `Class Selection - ${this._level.label}`);
         title.color = "white";
         title.fontSize = 42;
         title.fontWeight = "bold";
@@ -157,7 +157,7 @@ export class PlayerClassSelectionScene {
         this._loadingText.top = "-36px";
         this._gui.addControl(this._loadingText);
 
-        const backButton = Button.CreateSimpleButton("backToLevelsButton", "Retour");
+        const backButton = Button.CreateSimpleButton("backToLevelsButton", "Go back");
         backButton.width = "120px";
         backButton.height = "44px";
         backButton.color = "white";
@@ -229,7 +229,7 @@ export class PlayerClassSelectionScene {
         this._statsText.paddingRight = "20px";
         statsPanel.addControl(this._statsText);
 
-        this._playButton = Button.CreateSimpleButton("startSelectedClassButton", "Jouer");
+        this._playButton = Button.CreateSimpleButton("startSelectedClassButton", "Play");
         this._playButton.width = "220px";
         this._playButton.height = "58px";
         this._playButton.color = "white";
