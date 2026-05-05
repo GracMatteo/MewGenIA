@@ -19,29 +19,27 @@ import { Action, type InputManager } from "../../InputManager";
 import "@babylonjs/loaders/glTF";
 import { Inventory } from "../Inventory";
 import "@babylonjs/loaders/glTF"; // Assure que le loader GLTF est inclus pour charger les modèles .glb
-import { AssetManager } from "../../AssetManager";
+import { InventoryUI } from "../InventoryUI";
 
 export class Player extends Entity
 {
     private static readonly MOVE_STOP_DISTANCE = 0.15;
-    private static readonly VISUAL_ROTATION_LERP = 0.15;
+    private static readonly VISUAL_ROTATION_LERP = 0.10;
     private static readonly VISUAL_ROTATION_OFFSET = 0;
 
     transform!: Mesh;
     capsuleAggregate: any;
     inputs: InputManager;
-    Inventory: any;
+    inventory: Inventory;
+    inventoryUI: InventoryUI;
 
     constructor(scene: Scene, inputManager: InputManager, shadowGenerator: ShadowGenerator, uiTexture: AdvancedDynamicTexture)
     {
         super("player", scene, shadowGenerator, uiTexture);
         this.inputs = inputManager;
-        this.Inventory = new Inventory();
+        this.inventory = new Inventory();
+        this.inventoryUI = new InventoryUI(uiTexture, this.inventory);
         this.init();
-
-        this.scene.onBeforeRenderObservable.add(() => {
-            //this._handleInputs();
-        });
     }
 
     async init()
@@ -97,7 +95,7 @@ export class Player extends Entity
             name: "Player",
             description: "This is the player character."
         };
-
+        this.handleInputs();
         this.displayInventory();
         this.onHoverHighlight();
         this.selected();
@@ -114,7 +112,7 @@ export class Player extends Entity
     }
 
     //mieux avec les trigger et les observables de babylon (a voir pour les inputs de manière générale)
-    private _handleInputs()
+    handleInputs()
     {
         if (this.inputs.isActionActive(Action.ZOOM_IN))
         {
@@ -184,8 +182,7 @@ export class Player extends Entity
             return;
         }
 
-        const currentVelocity = this.capsuleAggregate.body.getLinearVelocity();
-        this.capsuleAggregate.body.setLinearVelocity(new Vector3(0, currentVelocity?.y ?? 0, 0));
+        this.capsuleAggregate.body.setLinearVelocity(new Vector3(0, 0, 0));
     }
 
     selected() 
@@ -208,9 +205,12 @@ export class Player extends Entity
 
     displayInventory()
     {
-        console.log("Inventory opened");
         this.inputs.onActionTriggered(Action.INVENTORY, () => {
-            console.log("Inventory action triggered");
+            if (!this.isSelected) {
+                return;
+            }
+
+            this.inventoryUI.toggle();
         });
     }
 }

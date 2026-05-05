@@ -3,10 +3,9 @@ import type { Collectable } from "../objects/Collectable";
 
 
 export class Inventory {
+    
     private items: Map<string, Collectable> = new Map();
     
-
-
 
     addItem(item: Collectable): void {
         if (this.items.has(item.itemName)) {

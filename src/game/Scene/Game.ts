@@ -101,6 +101,10 @@ export class GameScene {
     private _initCamera(): void {
         this._camera = new FreeCamera("gameCam", new Vector3(0, 10, 30), this.scene);
         this._camera.setTarget(Vector3.Zero());
+        this._camera.keysUp = [90]; // Z
+        this._camera.keysDown = [83]; // S
+        this._camera.keysLeft = [81]; // Q
+        this._camera.keysRight = [68]; // D
         this._camera.attachControl(this._engine.getRenderingCanvas(), true);
         this._camera.checkCollisions = true;
     }
@@ -145,6 +149,7 @@ export class GameScene {
         this._inputManager.onActionTriggered(Action.STOPNAV, () => {
             this._clearPath();
             this.player?.stopMovement();
+            this.player?.disselected();
         });
     }
 

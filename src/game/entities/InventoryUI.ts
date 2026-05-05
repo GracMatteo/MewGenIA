@@ -2,7 +2,6 @@ import {
     AdvancedDynamicTexture, 
     Rectangle, 
     Control, 
-    WrapPanel,
     TextBlock 
 } from "@babylonjs/gui";
 import { Inventory } from "./Inventory";
@@ -15,7 +14,6 @@ export class InventoryUI {
 
     // UI Elements
     private mainWindow!: Rectangle;
-    private slotsPanel!: WrapPanel;
     private slotControls: Rectangle[] = []; // Array to keep track of the square slots
 
     constructor(uiTexture: AdvancedDynamicTexture, inventory: Inventory) {
@@ -28,7 +26,7 @@ export class InventoryUI {
     private createUI() {
         //Create the Main Rectangular Window
         this.mainWindow = new Rectangle("inventoryWindow");
-        this.mainWindow.width = "400px";
+        this.mainWindow.width = "300px";
         this.mainWindow.height = "500px";
         this.mainWindow.background = "rgba(20, 20, 20, 0.8)"; // Semi-transparent dark background
         this.mainWindow.thickness = 2;
@@ -36,7 +34,7 @@ export class InventoryUI {
         this.mainWindow.cornerRadius = 5;
         this.mainWindow.isVisible = false; // Hidden by default
         this.mainWindow.verticalAlignment = Control.VERTICAL_ALIGNMENT_CENTER;
-        this.mainWindow.horizontalAlignment = Control.HORIZONTAL_ALIGNMENT_CENTER;
+        this.mainWindow.horizontalAlignment = Control.HORIZONTAL_ALIGNMENT_RIGHT;
         this.uiTexture.addControl(this.mainWindow);
 
         //Add a Title
@@ -49,10 +47,10 @@ export class InventoryUI {
         this.mainWindow.addControl(title);
 
         // 3. Create the WrapPanel to hold the squares
-        this.slotsPanel = new WrapPanel();
-        this.slotsPanel.width = "360px"; // Slightly smaller than main window to act as padding
-        this.slotsPanel.paddingTop = "50px"; // Push down below the title
-        this.mainWindow.addControl(this.slotsPanel);
+        //this.slotsPanel = new WrapPanel();
+        //this.slotsPanel.width = "360px"; // Slightly smaller than main window to act as padding
+        //this.slotsPanel.paddingTop = "50px"; // Push down below the title
+        //this.mainWindow.addControl(this.slotsPanel);
 
         //Generate the Square Object Slots
         const totalSlots = 20; // You can change this to this.inventory.capacity
@@ -70,7 +68,7 @@ export class InventoryUI {
             slot.paddingTop = "5px";
             slot.paddingBottom = "5px";
             
-            this.slotsPanel.addControl(slot);
+            //this.slotsPanel.addControl(slot);
             this.slotControls.push(slot); // Save reference for the refresh() method
         }
     }
