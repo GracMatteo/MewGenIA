@@ -26,10 +26,10 @@ import { Grenade } from "../objects/weapons/Grenade";
 import "@babylonjs/core/Debug/debugLayer"; // Ajoute la couche de debug à la classe Scene
 import "@babylonjs/inspector";
 import { AISoldier } from "../entities/enemies/AISoldier";
+import type { PlayerClassId } from "../entities/player/PlayerClass";
 
 
 export class GameScene {
-    private static readonly PLAYER_NAV_SPEED = 6;
     private static readonly WAYPOINT_REACHED_DISTANCE = 0.45;
     private static readonly MAX_PATH_SEGMENT_LENGTH = 2;
 
@@ -40,6 +40,7 @@ export class GameScene {
     private _havokInstance: any;
     private _recastInstance: any;
     private _level: LevelDefinition;
+    private _playerClassId: PlayerClassId;
     private _onReturnToMenu: () => void;
 
     private _navigationPlugin!: RecastJSPlugin;
@@ -57,12 +58,14 @@ export class GameScene {
         havokInstance: any,
         recastInstance: any,
         level: LevelDefinition,
+        playerClassId: PlayerClassId,
         onReturnToMenu: () => void
     ) {
         this._engine = engine;
         this._havokInstance = havokInstance;
         this._recastInstance = recastInstance;
         this._level = level;
+        this._playerClassId = playerClassId;
         this._onReturnToMenu = onReturnToMenu;
 
         this.scene = new Scene(this._engine);
@@ -125,9 +128,6 @@ export class GameScene {
             this._objects.push(grenade);
         }
 
-
-        this.player = new Player(this.scene, this._inputManager, this._shadowGenerator, this._ui);
-        //this.player.mesh!.position.set(0,10,0);
         this._setupNavMesh(levelMeshes);
         this._createPlayer()
         this._createEnemy();
@@ -524,7 +524,7 @@ export class GameScene {
                 continue;
             }
 
-            this.player.moveToward(physicsTarget, GameScene.PLAYER_NAV_SPEED);
+            this.player.moveToward(physicsTarget);
 
             const direction = physicsTarget.subtract(this.player.mesh.position);
             direction.y = 0;
@@ -545,7 +545,13 @@ export class GameScene {
     private async _createPlayer(): Promise<void> 
     {
         console.log("Creating player...");
-        this.player = new Player(this.scene, this._inputManager, this._shadowGenerator, this._ui);
+        this.player = new Player(
+            this.scene,
+            this._inputManager,
+            this._shadowGenerator,
+            this._ui,
+            this._playerClassId
+        );
     }
 
     private async _createEnemy(): Promise<void> {

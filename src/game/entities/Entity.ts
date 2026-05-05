@@ -129,6 +129,26 @@ export abstract class Entity
         // Ajouter les textes dans le rectangle, puis le rectangle dans l'UI globale
         this.hoverUIPanel.addControl(nameText);
         this.hoverUIPanel.addControl(descText);
+
+        if (this.info.stats) {
+            const stats = this.info.stats;
+            const classLine = this.info.playerClass ? `Classe: ${this.info.playerClass}\n` : "";
+            const statsText = new TextBlock(
+                "statsText",
+                `${classLine}HP: ${stats.hp}\nAttack: ${stats.attack}\nSpeed: ${stats.movementSpeed}\nAccuracy: ${Math.round(stats.accuracy * 100)}%`
+            );
+            statsText.color = "white";
+            statsText.fontSize = 14;
+            statsText.textWrapping = true;
+            statsText.textHorizontalAlignment = Control.HORIZONTAL_ALIGNMENT_LEFT;
+            statsText.textVerticalAlignment = Control.VERTICAL_ALIGNMENT_TOP;
+            statsText.top = "145px";
+            statsText.height = "125px";
+            statsText.paddingLeft = "15px";
+            statsText.paddingRight = "10px";
+            this.hoverUIPanel.addControl(statsText);
+        }
+
         this.uiTexture.addControl(this.hoverUIPanel);
 
         //Pour ajouter le ui a cote du personnage

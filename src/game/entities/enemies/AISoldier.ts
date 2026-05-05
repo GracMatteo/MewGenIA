@@ -1,4 +1,4 @@
-import { ImportMeshAsync, MeshBuilder, PhysicsAggregate, PhysicsMotionType, PhysicsShapeType, Scene, ShadowGenerator } from "@babylonjs/core";
+import { MeshBuilder, PhysicsAggregate, PhysicsMotionType, PhysicsShapeType, Scene, ShadowGenerator } from "@babylonjs/core";
 import { Entity } from "../Entity";
 import type { AdvancedDynamicTexture } from "@babylonjs/gui";
 import { AssetManager } from "../../AssetManager";

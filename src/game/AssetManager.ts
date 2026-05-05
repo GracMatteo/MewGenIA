@@ -14,7 +14,7 @@ export class AssetManager {
         return container;
     }
 
-    static instantiate(path: string, scene: Scene) {
+    static instantiate(path: string, _scene: Scene) {
         const container = this.cache.get(path);
         if (!container) throw new Error(`Model ${path} not loaded yet`);
         return container.instantiateModelsToScene();
