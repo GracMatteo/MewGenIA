@@ -76,6 +76,7 @@ export class GameScene {
         this._initPhysics();
         this._initNavigation();
         this._initCamera();
+        this._setupLights();
         this._inputManager = new InputManager(this.scene);
         this._ui = AdvancedDynamicTexture.CreateFullscreenUI(
             "GameUI",
