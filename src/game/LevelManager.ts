@@ -3,6 +3,8 @@ import { GameState } from "./GameState";
 import { LEVEL_IDS, type LevelDefinition, type LevelId } from "./LevelTypes";
 import { GameScene } from "./Scene/Game";
 import { MainMenu } from "./Scene/MainMenu";
+import { PlayerClassSelectionScene } from "./Scene/PlayerClassSelectionScene";
+import { DEFAULT_PLAYER_CLASS_ID, type PlayerClassId } from "./entities/player/PlayerClass";
 
 const LEVEL_CATALOG: LevelDefinition[] = [
     {
@@ -24,6 +26,7 @@ export class LevelManager {
     private _currentScene: Scene | null = null;
     private _currentState: typeof GameState[keyof typeof GameState] = GameState.MAIN_MENU;
     private _selectedLevel: LevelId | null = null;
+    private _selectedPlayerClassId: PlayerClassId | null = null;
 
     constructor(engine: Engine, havokInstance: unknown, recastInstance: unknown) {
         this._engine = engine;
@@ -43,6 +46,10 @@ export class LevelManager {
         return this._selectedLevel;
     }
 
+    public get selectedPlayerClassId(): PlayerClassId | null {
+        return this._selectedPlayerClassId;
+    }
+
     public get levels(): LevelDefinition[] {
         return LEVEL_CATALOG;
     }
@@ -52,20 +59,42 @@ export class LevelManager {
 
         const menu = new MainMenu(this._engine, LEVEL_CATALOG);
         menu.onLevelSelected = (levelId) => {
-            this.loadLevel(levelId);
+            this.goToClassSelection(levelId);
         };
 
         this._currentScene = menu.scene;
         this._currentState = GameState.MAIN_MENU;
         this._selectedLevel = null;
+        this._selectedPlayerClassId = null;
     }
 
-    public loadLevel(levelId: LevelId): void {
+    public goToClassSelection(levelId: LevelId): void {
         const selectedLevel = LEVEL_CATALOG.find((level) => level.id === levelId);
         if (!selectedLevel) {
             throw new Error(`Unknown level id: ${levelId}`);
         }
 
+        this._disposeCurrentScene();
+
+        const classSelection = new PlayerClassSelectionScene(this._engine, selectedLevel);
+        classSelection.onClassSelected = (playerClassId) => {
+            void this.loadLevel(levelId, playerClassId);
+        };
+        classSelection.onBackRequested = () => this.goToMainMenu();
+
+        this._currentScene = classSelection.scene;
+        this._currentState = GameState.CLASS_SELECTION;
+        this._selectedLevel = selectedLevel.id;
+        this._selectedPlayerClassId = null;
+    }
+
+    public async loadLevel(levelId: LevelId, playerClassId: PlayerClassId = DEFAULT_PLAYER_CLASS_ID): Promise<void> {
+        const selectedLevel = LEVEL_CATALOG.find((level) => level.id === levelId);
+        if (!selectedLevel) {
+            throw new Error(`Unknown level id: ${levelId}`);
+        }
+
+        this._engine.loadingScreen.loadingUIText = "Chargement du niveau...";
         this._engine.displayLoadingUI();
         try {
             this._disposeCurrentScene();
@@ -75,12 +104,16 @@ export class LevelManager {
                 this._havokInstance,
                 this._recastInstance,
                 selectedLevel,
+                playerClassId,
                 () => this.goToMainMenu()
             );
+
+            await game.ready;
 
             this._currentScene = game.scene;
             this._currentState = GameState.IN_GAME;
             this._selectedLevel = selectedLevel.id;
+            this._selectedPlayerClassId = playerClassId;
         } finally {
             this._engine.hideLoadingUI();
         }

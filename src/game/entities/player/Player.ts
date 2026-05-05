@@ -19,6 +19,13 @@ import { Action, type InputManager } from "../../InputManager";
 import "@babylonjs/loaders/glTF";
 import { Inventory } from "../Inventory";
 import "@babylonjs/loaders/glTF"; // Assure que le loader GLTF est inclus pour charger les modèles .glb
+import {
+    DEFAULT_PLAYER_CLASS_ID,
+    getPlayerClass,
+    type PlayerClass,
+    type PlayerClassId,
+    type PlayerStats
+} from "./PlayerClass";
 import { InventoryUI } from "../InventoryUI";
 
 export class Player extends Entity
@@ -32,19 +39,28 @@ export class Player extends Entity
     inputs: InputManager;
     inventory: Inventory;
     inventoryUI: InventoryUI;
+    public readonly playerClass: PlayerClass;
+    public readonly ready: Promise<void>;
 
-    constructor(scene: Scene, inputManager: InputManager, shadowGenerator: ShadowGenerator, uiTexture: AdvancedDynamicTexture)
+    constructor(
+        scene: Scene,
+        inputManager: InputManager,
+        shadowGenerator: ShadowGenerator,
+        uiTexture: AdvancedDynamicTexture,
+        playerClassId: PlayerClassId = DEFAULT_PLAYER_CLASS_ID
+    )
     {
         super("player", scene, shadowGenerator, uiTexture);
         this.inputs = inputManager;
         this.inventory = new Inventory();
         this.inventoryUI = new InventoryUI(uiTexture, this.inventory);
-        this.init();
+        this.playerClass = getPlayerClass(playerClassId);
+        this.ready = this.init();
     }
 
     async init()
     {
-        const result = await ImportMeshAsync("/models/player.glb", this.scene);
+        const result = await ImportMeshAsync(this.playerClass.modelPath, this.scene);
         const playerVisualRoot = result.meshes[0];
         playerVisualRoot.name = "playerVisualRoot";
         this.visualMeshes = result.meshes;
@@ -93,7 +109,9 @@ export class Player extends Entity
 
         this.info = {
             name: "Player",
-            description: "This is the player character."
+            description: this.playerClass.description,
+            playerClass: this.playerClass.name,
+            stats: this.playerClass.stats
         };
         this.handleInputs();
         this.displayInventory();
@@ -150,7 +168,12 @@ export class Player extends Entity
 
     }
 
-    moveToward(target: Vector3, speed: number): void
+    get stats(): PlayerStats
+    {
+        return this.playerClass.stats;
+    }
+
+    moveToward(target: Vector3, speed: number = this.stats.movementSpeed): void
     {
         if (!this.mesh || !this.capsuleAggregate?.body) {
             return;

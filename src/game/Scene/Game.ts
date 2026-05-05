@@ -26,10 +26,11 @@ import { Grenade } from "../objects/weapons/Grenade";
 import "@babylonjs/core/Debug/debugLayer"; // Ajoute la couche de debug à la classe Scene
 import "@babylonjs/inspector";
 import { AISoldier } from "../entities/enemies/AISoldier";
+import type { EnemyBehaviorId } from "../entities/enemies/ai/EnemyBehavior";
+import type { PlayerClassId } from "../entities/player/PlayerClass";
 
 
 export class GameScene {
-    private static readonly PLAYER_NAV_SPEED = 6;
     private static readonly WAYPOINT_REACHED_DISTANCE = 0.45;
     private static readonly MAX_PATH_SEGMENT_LENGTH = 2;
 
@@ -40,6 +41,7 @@ export class GameScene {
     private _havokInstance: any;
     private _recastInstance: any;
     private _level: LevelDefinition;
+    private _playerClassId: PlayerClassId;
     private _onReturnToMenu: () => void;
 
     private _navigationPlugin!: RecastJSPlugin;
@@ -51,18 +53,22 @@ export class GameScene {
     private _activePath: Vector3[] = [];
     private _activePathIndex = 0;
     private _objects: Object[] = [];
+    private _enemies: AISoldier[] = [];
+    public readonly ready: Promise<void>;
 
     constructor(
         engine: Engine,
         havokInstance: any,
         recastInstance: any,
         level: LevelDefinition,
+        playerClassId: PlayerClassId,
         onReturnToMenu: () => void
     ) {
         this._engine = engine;
         this._havokInstance = havokInstance;
         this._recastInstance = recastInstance;
         this._level = level;
+        this._playerClassId = playerClassId;
         this._onReturnToMenu = onReturnToMenu;
 
         this.scene = new Scene(this._engine);
@@ -83,9 +89,8 @@ export class GameScene {
         //this._createGround("ground", 200, 200);
         
         // 4. Entités
-        this._setupLights();
         this._setupMenuShortcut();
-        this._initLevel(this._level.id);
+        this.ready = this._initLevel(this._level.id);
     }
 
     private _initPhysics(): void {
@@ -119,7 +124,23 @@ export class GameScene {
 
     private async _initLevel(levelId: LevelId): Promise<void> {
         const levelMeshes = this._buildLevel(levelId);
+        const grenadesReady = this._createGrenades();
 
+        this._setupNavMesh(levelMeshes);
+        await this._createPlayer();
+        await Promise.all([
+            grenadesReady,
+            this._createEnemy()
+        ]);
+
+        // 4. Setup de la foule (Crowd)
+        //this._setupCrowd();
+        this._setupPointerEvents();
+        this.scene.onBeforeRenderObservable.add(() => this._updatePlayerNavigation());
+        this.scene.onBeforeRenderObservable.add(() => this._updateEnemies());
+    }
+
+    private async _createGrenades(): Promise<void> {
         let nbGrenades = 10;
         for (let i = 0; i < nbGrenades; i++) {
             const grenade = new Grenade(this.scene, this._ui, this._shadowGenerator,"grenade_" + i);
@@ -131,7 +152,7 @@ export class GameScene {
 
         //this.player = new Player(this.scene, this._inputManager, this._shadowGenerator, this._ui);
         //this.player.mesh!.position.set(0,10,0);
-        this._setupNavMesh(levelMeshes);
+        //this._setupNavMesh(levelMeshes);
         this._createPlayer()
         this._createEnemy();
         // 4. Setup de la foule (Crowd)
@@ -526,7 +547,7 @@ export class GameScene {
                 continue;
             }
 
-            this.player.moveToward(physicsTarget, GameScene.PLAYER_NAV_SPEED);
+            this.player.moveToward(physicsTarget);
 
             const direction = physicsTarget.subtract(this.player.mesh.position);
             direction.y = 0;
@@ -544,15 +565,33 @@ export class GameScene {
         this._clearPath();
     }
 
+    private _updateEnemies(): void {
+        if (!this.player?.mesh) {
+            return;
+        }
+
+        const deltaSeconds = this.scene.getEngine().getDeltaTime() / 1000;
+        this._enemies.forEach((enemy) => enemy.update(this.player, deltaSeconds));
+    }
+
     private async _createPlayer(): Promise<void> 
     {
         console.log("Creating player...");
-        this.player = new Player(this.scene, this._inputManager, this._shadowGenerator, this._ui);
+        this.player = new Player(
+            this.scene,
+            this._inputManager,
+            this._shadowGenerator,
+            this._ui,
+            this._playerClassId
+        );
+        await this.player.ready;
     }
 
-    private async _createEnemy(): Promise<void> {
+    private async _createEnemy(behaviorId?: EnemyBehaviorId): Promise<void> {
         console.log("Creating enemy...");
-        new AISoldier(this.scene, this._shadowGenerator, this._ui);
+        const enemy = new AISoldier(this.scene, this._shadowGenerator, this._ui, behaviorId);
+        await enemy.ready;
+        this._enemies.push(enemy);
     }
 
 
