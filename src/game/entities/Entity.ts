@@ -112,8 +112,13 @@ export abstract class Entity
         nameText.color = "#FFD700"; // Doré
         nameText.fontSize = 22;
         nameText.fontWeight = "bold";
+        nameText.width = "130px";
+        nameText.horizontalAlignment = Control.HORIZONTAL_ALIGNMENT_LEFT;
+        nameText.verticalAlignment = Control.VERTICAL_ALIGNMENT_TOP;
+        nameText.textHorizontalAlignment = Control.HORIZONTAL_ALIGNMENT_LEFT;
         nameText.textVerticalAlignment = Control.VERTICAL_ALIGNMENT_TOP;
         nameText.top = "15px"; // Espace en haut
+        nameText.left = "10px";
         nameText.height = "30px"; // Hauteur fixe pour le titre
 
         // Créer le texte pour la description
@@ -121,8 +126,14 @@ export abstract class Entity
         descText.color = "white";
         descText.fontSize = 14;
         descText.textWrapping = true; // ESSENTIEL : Retour à la ligne automatique
+        descText.width = "130px";
+        descText.height = "80px";
+        descText.horizontalAlignment = Control.HORIZONTAL_ALIGNMENT_LEFT;
+        descText.verticalAlignment = Control.VERTICAL_ALIGNMENT_TOP;
+        descText.textHorizontalAlignment = Control.HORIZONTAL_ALIGNMENT_LEFT;
         descText.textVerticalAlignment = Control.VERTICAL_ALIGNMENT_TOP;
         descText.top = "60px"; // On le place sous le titre
+        descText.left = "10px";
         descText.paddingLeft = "10px";
         descText.paddingRight = "10px";
 
@@ -140,9 +151,13 @@ export abstract class Entity
             statsText.color = "white";
             statsText.fontSize = 14;
             statsText.textWrapping = true;
+            statsText.width = "130px";
+            statsText.horizontalAlignment = Control.HORIZONTAL_ALIGNMENT_LEFT;
+            statsText.verticalAlignment = Control.VERTICAL_ALIGNMENT_TOP;
             statsText.textHorizontalAlignment = Control.HORIZONTAL_ALIGNMENT_LEFT;
             statsText.textVerticalAlignment = Control.VERTICAL_ALIGNMENT_TOP;
             statsText.top = "145px";
+            statsText.left = "10px";
             statsText.height = "125px";
             statsText.paddingLeft = "15px";
             statsText.paddingRight = "10px";

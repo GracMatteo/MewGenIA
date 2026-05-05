@@ -76,6 +76,7 @@ export class GameScene {
         this._initPhysics();
         this._initNavigation();
         this._initCamera();
+        this._setupLights();
         this._inputManager = new InputManager(this.scene);
         this._ui = AdvancedDynamicTexture.CreateFullscreenUI(
             "GameUI",
@@ -84,9 +85,9 @@ export class GameScene {
             Texture.BILINEAR_SAMPLINGMODE,
             true
         );
+        //this._ui = AdvancedDynamicTexture.CreateFullscreenUI("GameUI", true, this.scene, Texture.BILINEAR_SAMPLINGMODE, true);
         // 3. Environnement
-        this._setupLights();
-        this._createGround("ground", 200, 200);
+        //this._createGround("ground", 200, 200);
         
         // 4. Entités
         this._setupMenuShortcut();
@@ -106,6 +107,10 @@ export class GameScene {
     private _initCamera(): void {
         this._camera = new FreeCamera("gameCam", new Vector3(0, 10, 30), this.scene);
         this._camera.setTarget(Vector3.Zero());
+        this._camera.keysUp = [90]; // Z
+        this._camera.keysDown = [83]; // S
+        this._camera.keysLeft = [81]; // Q
+        this._camera.keysRight = [68]; // D
         this._camera.attachControl(this._engine.getRenderingCanvas(), true);
         this._camera.checkCollisions = true;
     }
@@ -144,6 +149,17 @@ export class GameScene {
             grenade.mesh!.position.set(0, 4 + i, 0);
             this._objects.push(grenade);
         }
+
+
+        //this.player = new Player(this.scene, this._inputManager, this._shadowGenerator, this._ui);
+        //this.player.mesh!.position.set(0,10,0);
+        //this._setupNavMesh(levelMeshes);
+        this._createPlayer()
+        this._createEnemy();
+        // 4. Setup de la foule (Crowd)
+        //this._setupCrowd();
+        this._setupPointerEvents();
+        this.scene.onBeforeRenderObservable.add(() => this._updatePlayerNavigation());
     }
 
     private _setupMenuShortcut(): void {
@@ -155,6 +171,7 @@ export class GameScene {
         this._inputManager.onActionTriggered(Action.STOPNAV, () => {
             this._clearPath();
             this.player?.stopMovement();
+            this.player?.disselected();
         });
     }
 

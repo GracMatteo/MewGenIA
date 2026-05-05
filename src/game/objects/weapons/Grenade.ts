@@ -1,9 +1,12 @@
 import { Color3, MeshBuilder, PhysicsAggregate, PhysicsMotionType, PhysicsShapeType, Scene, ShadowGenerator, StandardMaterial } from "@babylonjs/core";
 import type { AdvancedDynamicTexture } from "@babylonjs/gui";
 import { Object } from "../Object";
+import { Collectable } from "../Collectable";
 
 
-export class Grenade extends Object {
+export class Grenade extends Collectable {
+    public itemName: string = "not assigned yet";
+    public iconPath: string = "not assigned yet";
 
     SphereAggregate: any;
     isActivated: boolean = false;

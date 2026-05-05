@@ -3,10 +3,9 @@ import type { Collectable } from "../objects/Collectable";
 
 
 export class Inventory {
+    
     private items: Map<string, Collectable> = new Map();
     
-
-
 
     addItem(item: Collectable): void {
         if (this.items.has(item.itemName)) {
@@ -15,6 +14,14 @@ export class Inventory {
         }
         this.items.set(item.itemName, item);
         console.log(`Added ${item.itemName} to inventory.`);
+    }
+
+    getItem(itemName: string): Collectable | undefined {
+        return this.items.get(itemName);
+    }
+
+    getItems(): Collectable[] {
+        return Array.from(this.items.values());
     }
 
     removeItem(itemName: string): void {

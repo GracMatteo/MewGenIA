@@ -4,8 +4,8 @@ import { Object } from "./Object";
 
 export abstract class Collectable extends Object {
 
-    public abstract itemName: string;
-    public abstract iconPath: string;
+    public abstract itemName: string | undefined;
+    public abstract iconPath: string | undefined;
 
     public collect(_player: Entity) : void {
         console.log(`Player collected: ${this.itemName}`);

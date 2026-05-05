@@ -26,17 +26,19 @@ import {
     type PlayerClassId,
     type PlayerStats
 } from "./PlayerClass";
+import { InventoryUI } from "../InventoryUI";
 
 export class Player extends Entity
 {
     private static readonly MOVE_STOP_DISTANCE = 0.15;
-    private static readonly VISUAL_ROTATION_LERP = 0.15;
+    private static readonly VISUAL_ROTATION_LERP = 0.10;
     private static readonly VISUAL_ROTATION_OFFSET = 0;
 
     transform!: Mesh;
     capsuleAggregate: any;
     inputs: InputManager;
-    Inventory: any;
+    inventory: Inventory;
+    inventoryUI: InventoryUI;
     public readonly playerClass: PlayerClass;
     public readonly ready: Promise<void>;
 
@@ -50,13 +52,10 @@ export class Player extends Entity
     {
         super("player", scene, shadowGenerator, uiTexture);
         this.inputs = inputManager;
-        this.Inventory = new Inventory();
+        this.inventory = new Inventory();
+        this.inventoryUI = new InventoryUI(uiTexture, this.inventory);
         this.playerClass = getPlayerClass(playerClassId);
         this.ready = this.init();
-
-        this.scene.onBeforeRenderObservable.add(() => {
-            this._handleInputs();
-        });
     }
 
     async init()
@@ -114,8 +113,8 @@ export class Player extends Entity
             playerClass: this.playerClass.name,
             stats: this.playerClass.stats
         };
-
-
+        this.handleInputs();
+        this.displayInventory();
         this.onHoverHighlight();
         this.selected();
     }
@@ -130,7 +129,8 @@ export class Player extends Entity
 
     }
 
-    private _handleInputs()
+    //mieux avec les trigger et les observables de babylon (a voir pour les inputs de manière générale)
+    handleInputs()
     {
         if (this.inputs.isActionActive(Action.ZOOM_IN))
         {
@@ -180,10 +180,10 @@ export class Player extends Entity
         }
 
         const currentPosition = this.mesh.position;
-        console.log("target: position = ", target);
+        //console.log("target: position = ", target);
         const direction = target.subtract(currentPosition);
         direction.y = 0;
-        console.log("Direction to target: ", direction);
+        //console.log("Direction to target: ", direction);
         const distance = direction.length();
         const currentVelocity = this.capsuleAggregate.body.getLinearVelocity();
         const verticalVelocity = currentVelocity?.y ?? 0;
@@ -205,8 +205,7 @@ export class Player extends Entity
             return;
         }
 
-        const currentVelocity = this.capsuleAggregate.body.getLinearVelocity();
-        this.capsuleAggregate.body.setLinearVelocity(new Vector3(0, currentVelocity?.y ?? 0, 0));
+        this.capsuleAggregate.body.setLinearVelocity(new Vector3(0, 0, 0));
     }
 
     selected() 
@@ -225,5 +224,16 @@ export class Player extends Entity
             this.isSelected = false;
             console.log("Joueur deselectionne");
         }
+    }
+
+    displayInventory()
+    {
+        this.inputs.onActionTriggered(Action.INVENTORY, () => {
+            if (!this.isSelected) {
+                return;
+            }
+
+            this.inventoryUI.toggle();
+        });
     }
 }
