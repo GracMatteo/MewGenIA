@@ -3,7 +3,9 @@ import {
     ChaseTargetAction,
     FleeTargetAction,
     IdleAction,
-    PatrolAroundSpawnAction
+    MeleeAttackTargetAction,
+    PatrolAroundSpawnAction,
+    RangedAttackTargetAction
 } from "./EnemyAction";
 
 export const EnemyBehaviorId = {
@@ -44,17 +46,21 @@ export function createEnemyBehavior(behaviorId: EnemyBehaviorId): EnemyBehavior 
     switch (behaviorId) {
         case EnemyBehaviorId.AGGRESSIVE:
             return new ActionSequenceBehavior(behaviorId, [
+                new MeleeAttackTargetAction(),
+                new RangedAttackTargetAction(),
                 new ChaseTargetAction(1.8, 40, 1.05),
                 new IdleAction()
             ]);
         case EnemyBehaviorId.FEARFUL:
             return new ActionSequenceBehavior(behaviorId, [
                 new FleeTargetAction(12, 8, 1.25),
+                new RangedAttackTargetAction(1.8),
                 new PatrolAroundSpawnAction(10, 0.7, 0.65),
                 new IdleAction()
             ]);
         case EnemyBehaviorId.PATROLLER:
             return new ActionSequenceBehavior(behaviorId, [
+                new RangedAttackTargetAction(1.6),
                 new ChaseTargetAction(2, 10, 0.9),
                 new PatrolAroundSpawnAction(12, 0.7, 0.75),
                 new IdleAction()

@@ -1,6 +1,13 @@
-import { AbstractMesh, ActionManager, Color3, ExecuteCodeAction, PhysicsAggregate, type Scene, type ShadowGenerator } from "@babylonjs/core";
+import { AbstractMesh, ActionManager, Color3, ExecuteCodeAction, PhysicsAggregate, Vector3, type Scene, type ShadowGenerator } from "@babylonjs/core";
 import type { EntityInfo } from "./EntityInfo";
 import { Control, Rectangle, TextBlock, type AdvancedDynamicTexture } from "@babylonjs/gui";
+import {
+    BasicActionId,
+    createBasicActionSet,
+    type BasicAction,
+    type BasicActionContext,
+    type BasicActionResult
+} from "./actions/BasicAction";
 
 export abstract class Entity
 {
@@ -16,6 +23,8 @@ export abstract class Entity
     
     protected uiTexture: AdvancedDynamicTexture;
     protected hoverUIPanel!: Rectangle;
+    private readonly _basicActions: Record<BasicActionId, BasicAction> = createBasicActionSet();
+    private _currentHp: number | null = null;
 
     public isSelected : boolean = false;
 
@@ -39,6 +48,102 @@ export abstract class Entity
     abstract update(input?: any) : void;
 
     abstract fixedUpdate(input?: any) : void;
+
+    get stats() {
+        return this.info?.stats;
+    }
+
+    get currentHp(): number {
+        return this._currentHp ?? this.stats?.hp ?? 0;
+    }
+
+    protected initializeActionState(): void {
+        this._currentHp = this.stats?.hp ?? null;
+    }
+
+    public getBasicAction(actionId: BasicActionId): BasicAction {
+        return this._basicActions[actionId];
+    }
+
+    public getBasicActionRadius(actionId: BasicActionId): number {
+        return this.getBasicAction(actionId).radius;
+    }
+
+    public canPerformBasicAction(
+        actionId: BasicActionId,
+        context: Omit<BasicActionContext, "actor"> = {}
+    ): boolean {
+        return this.getBasicAction(actionId).canRun({
+            ...context,
+            actor: this
+        });
+    }
+
+    public performBasicAction(
+        actionId: BasicActionId,
+        context: Omit<BasicActionContext, "actor"> = {}
+    ): BasicActionResult {
+        return this.getBasicAction(actionId).run({
+            ...context,
+            actor: this
+        });
+    }
+
+    public receiveDamage(amount: number): void {
+        if (!this.stats) {
+            return;
+        }
+
+        this._currentHp = Math.max(0, this.currentHp - Math.max(0, amount));
+        console.log(`${this.info.name} took ${amount} damage. HP: ${this._currentHp}/${this.stats.hp}`);
+    }
+
+    public faceTarget(targetPosition: Vector3): void {
+        if (!this.mesh) {
+            return;
+        }
+
+        const direction = targetPosition.subtract(this.mesh.position);
+        direction.y = 0;
+
+        if (direction.lengthSquared() <= 0.001) {
+            return;
+        }
+
+        direction.normalize();
+        this.mesh.rotation.y = Math.atan2(direction.x, direction.z);
+    }
+
+    public jumpTo(targetPoint: Vector3, duration: number = 0.45): boolean {
+        if (!this.mesh) {
+            return false;
+        }
+
+        const body = this.aggregate?.body;
+        const start = this.mesh.position;
+        const target = targetPoint.clone();
+        target.y += this.getJumpTargetHeightOffset();
+        this.faceTarget(target);
+
+        if (!body) {
+            this.mesh.position.copyFrom(target);
+            return true;
+        }
+
+        const gravity = Math.abs(this.scene.getPhysicsEngine()?.gravity.y ?? -9.81);
+        const velocity = new Vector3(
+            (target.x - start.x) / duration,
+            (target.y - start.y + 0.5 * gravity * duration * duration) / duration,
+            (target.z - start.z) / duration
+        );
+
+        body.setLinearVelocity(velocity);
+        return true;
+    }
+
+    protected getJumpTargetHeightOffset(): number {
+        return 1;
+    }
 
     //hover entity logique
     onHoverHighlight(){

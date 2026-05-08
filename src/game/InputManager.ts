@@ -7,6 +7,7 @@ export const Action = {
     PLAYER_CAMERA: "PLAYER_CAMERA",
     INVENTORY: "INVENTORY",
     INTERACT: "INTERACT",
+    JUMP: "JUMP",
     STOPNAV: "STOPNAV",
     THROW_GRENADE: "THROW_GRENADE",
     MOVE: "MOVE"
@@ -25,6 +26,7 @@ export class InputManager {
         [Action.PLAYER_CAMERA]: ["Space"],
         [Action.INVENTORY]: ["KeyI"],
         [Action.INTERACT]: ["Enter"],
+        [Action.JUMP]: ["KeyC"],
         [Action.STOPNAV]: ["KeyZ"],
         [Action.THROW_GRENADE]: ["KeyQ"],
         [Action.MOVE]: ["mouse2"] // Exemple pour une action de mouvement

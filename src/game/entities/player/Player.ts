@@ -100,6 +100,7 @@ export class Player extends Entity
             { mass: 10, restitution: 0, friction: 0.5 },
             this.scene
         );
+        this.aggregate = this.capsuleAggregate;
         this.capsuleAggregate.body.setMotionType(PhysicsMotionType.DYNAMIC);
         this.capsuleAggregate.body.setMassProperties({
             inertia: Vector3.Zero()
@@ -113,6 +114,7 @@ export class Player extends Entity
             playerClass: this.playerClass.name,
             stats: this.playerClass.stats
         };
+        this.initializeActionState();
         this.handleInputs();
         this.displayInventory();
         this.onHoverHighlight();

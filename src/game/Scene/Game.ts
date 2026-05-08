@@ -31,6 +31,7 @@ import type { EnemyBehaviorId } from "../entities/enemies/ai/EnemyBehavior";
 import type { PlayerClassId } from "../entities/player/PlayerClass";
 import { Collectable } from "../objects/Collectable";
 import type { Object as GameObject } from "../objects/Object";
+import { BasicActionId } from "../entities/actions/BasicAction";
 
 
 export class GameScene {
@@ -84,6 +85,9 @@ export class GameScene {
     private _activePath: Vector3[] = [];
     private _activePathIndex = 0;
     private _objects: GameObject[] = [];
+    private _jumpTargetingActive = false;
+    private _jumpRadiusMesh: Mesh | null = null;
+    //private _objects: Object[] = [];
     private _enemies: AISoldier[] = [];
     public readonly ready: Promise<void>;
 
@@ -169,6 +173,7 @@ export class GameScene {
         //this._setupCrowd();
         this._setupPointerEvents();
         this.scene.onBeforeRenderObservable.add(() => this._updatePlayerNavigation());
+        this.scene.onBeforeRenderObservable.add(() => this._updateJumpRadius());
         this.scene.onBeforeRenderObservable.add(() => this._updateEnemies());
         this.scene.onBeforeRenderObservable.add(() => this._updateCollectables());
         this.scene.onBeforeRenderObservable.add(() => this._updateCameraFollow());
@@ -237,11 +242,13 @@ export class GameScene {
     private _setupMenuShortcut(): void {
         this._inputManager.onActionTriggered(Action.MENU, () => {
             this._clearPath();
+            this._setJumpTargeting(false);
             this._onReturnToMenu();
         });
 
         this._inputManager.onActionTriggered(Action.STOPNAV, () => {
             this._clearPath();
+            this._setJumpTargeting(false);
             this.player?.stopMovement();
             this.player?.disselected();
         });
@@ -316,6 +323,15 @@ export class GameScene {
         }
 
         return throwDirection.normalize();
+        this._inputManager.onActionTriggered(Action.JUMP, () => {
+            if (!this.player?.isSelected) {
+                return;
+            }
+
+            this._clearPath();
+            this.player.stopMovement();
+            this._setJumpTargeting(!this._jumpTargetingActive);
+        });
     }
 
     private _setupCameraShortcuts(): void {
@@ -640,6 +656,11 @@ export class GameScene {
                 return;
             }
 
+            if (this._jumpTargetingActive) {
+                this._tryPlayerJump(pickInfo.pickedPoint!);
+                return;
+            }
+
             if (pickInfo.pickedMesh === this.player.mesh) {
                 return;
             }
@@ -661,6 +682,69 @@ export class GameScene {
                 this.player.stopMovement();
             }
         });
+    }
+
+    private _setJumpTargeting(isActive: boolean): void {
+        this._jumpTargetingActive = isActive;
+
+        if (!isActive) {
+            this._clearJumpRadius();
+            return;
+        }
+
+        this._drawJumpRadius();
+    }
+
+    private _drawJumpRadius(): void {
+        this._clearJumpRadius();
+
+        if (!this.player?.mesh) {
+            return;
+        }
+
+        const radius = this.player.getBasicActionRadius(BasicActionId.JUMP);
+        const radiusMesh = MeshBuilder.CreateDisc(
+            "jumpRadius",
+            { radius, tessellation: 96 },
+            this.scene
+        );
+        radiusMesh.rotation.x = Math.PI / 2;
+        radiusMesh.position.copyFrom(this.player.mesh.position);
+        radiusMesh.position.y = Math.max(0.04, this.player.mesh.position.y - 0.96);
+        radiusMesh.isPickable = false;
+
+        const material = new StandardMaterial("jumpRadiusMat", this.scene);
+        material.diffuseColor = new Color3(0.2, 0.85, 1);
+        material.emissiveColor = new Color3(0.05, 0.25, 0.35);
+        material.alpha = 0.22;
+        material.backFaceCulling = false;
+        radiusMesh.material = material;
+
+        this._jumpRadiusMesh = radiusMesh;
+    }
+
+    private _clearJumpRadius(): void {
+        if (this._jumpRadiusMesh?.material) {
+            this._jumpRadiusMesh.material.dispose();
+        }
+
+        this._jumpRadiusMesh?.dispose();
+        this._jumpRadiusMesh = null;
+    }
+
+    private _tryPlayerJump(destination: Vector3): void {
+        const result = this.player.performBasicAction(BasicActionId.JUMP, {
+            targetPoint: destination
+        });
+
+        if (!result.success) {
+            this._createClickFeedback(destination, new Color3(1, 0.2, 0.15));
+            return;
+        }
+
+        this._clearPath();
+        this._createClickFeedback(destination, new Color3(0.2, 0.85, 1));
+        this._setJumpTargeting(false);
     }
 
     private _segmentPath(pathPoints: Vector3[]): Vector3[] {
@@ -710,7 +794,7 @@ export class GameScene {
         }
     }
 
-    private _createClickFeedback(position: Vector3): void {
+    private _createClickFeedback(position: Vector3, color: Color3 = new Color3(1, 1, 1)): void {
         const feedback = MeshBuilder.CreateDisc("clickFeedback", { radius: 0.5 }, this.scene);
 
         feedback.position = position.clone();
@@ -718,8 +802,8 @@ export class GameScene {
         feedback.rotation.x = Math.PI / 2;
 
         const mat = new StandardMaterial("feedbackMat", this.scene);
-        mat.diffuseColor = new Color3(1, 1, 1);
-        mat.emissiveColor = new Color3(0.5, 0.5, 0.5);
+        mat.diffuseColor = color;
+        mat.emissiveColor = color.scale(0.5);
         mat.alpha = 0.6;
         feedback.material = mat;
 
@@ -789,6 +873,16 @@ export class GameScene {
 
         this.player.stopMovement();
         this._clearPath();
+    }
+
+    private _updateJumpRadius(): void {
+        if (!this._jumpRadiusMesh || !this.player?.mesh) {
+            return;
+        }
+
+        this._jumpRadiusMesh.position.x = this.player.mesh.position.x;
+        this._jumpRadiusMesh.position.y = Math.max(0.04, this.player.mesh.position.y - 0.96);
+        this._jumpRadiusMesh.position.z = this.player.mesh.position.z;
     }
 
     private _updateEnemies(): void {

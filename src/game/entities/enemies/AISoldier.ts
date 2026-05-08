@@ -80,6 +80,7 @@ export class AISoldier extends Entity
         });
 
         this.capsuleAggregate = new PhysicsAggregate(this.mesh, PhysicsShapeType.CAPSULE, { mass: 0.1, restitution: 0 }, this.scene);
+        this.aggregate = this.capsuleAggregate;
         this.capsuleAggregate.body.setMotionType(PhysicsMotionType.DYNAMIC);
         this.capsuleAggregate.body.setMassProperties({
             inertia: Vector3.Zero()
@@ -92,6 +93,7 @@ export class AISoldier extends Entity
             description : `This enemy uses the ${this.behaviorId.toLowerCase()} behaviour.`,
             stats: AISoldier.BASE_STATS
         }
+        this.initializeActionState();
 
         this.onHoverHighlight();
     }
