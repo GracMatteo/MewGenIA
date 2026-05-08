@@ -149,17 +149,6 @@ export class GameScene {
             grenade.mesh!.position.set(0, 4 + i, 0);
             this._objects.push(grenade);
         }
-
-
-        //this.player = new Player(this.scene, this._inputManager, this._shadowGenerator, this._ui);
-        //this.player.mesh!.position.set(0,10,0);
-        //this._setupNavMesh(levelMeshes);
-        this._createPlayer()
-        this._createEnemy();
-        // 4. Setup de la foule (Crowd)
-        //this._setupCrowd();
-        this._setupPointerEvents();
-        this.scene.onBeforeRenderObservable.add(() => this._updatePlayerNavigation());
     }
 
     private _setupMenuShortcut(): void {
