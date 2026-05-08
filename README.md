@@ -21,7 +21,7 @@
     - **Havok :** pour gerer les colisions , la gravité.
     - **navMesh avec Recast :** gerer le deplacement d'entité avec le click de souris comme sur un RTS ou MOBA.
 
-    Pour pallier a ce probleme nous avons decidé que lorsque le deplacement du du personnage avec le navMesh ce deplace. Cela crée un vecteur de direction en soustrayant avec sa position et la direction du prochain node du navMesh. Puis en donnant ce vecteur au aggragateBody en linearVelocity de l'entité.
+    Pour pallier a ce probleme nous avons decidé que lorsque le deplacement du personnage avec le navMesh ce deplace. Cela crée un vecteur de direction en soustrayant avec sa position et la direction du prochain node du navMesh. Puis en donnant ce vecteur au aggragateBody en linearVelocity de l'entité.
 
 ---
 
@@ -40,5 +40,5 @@
 
 ## 5.Liens
 * **Jeux :** https://mew-gen-ia.vercel.app/
-* **youtube :** https://www.youtube.com/@MewGenIA 
+* **youtube :** https://www.youtube.com/@MewGenIA
 
