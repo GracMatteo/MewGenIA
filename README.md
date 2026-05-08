@@ -12,7 +12,7 @@
 
 * **Intégration scénaristique ou visuelle** : L'IA est representé dans le monde du jeu avec des personnages robotique, cybernetiques et drones.
 * **Mécaniques de jeu** : Le joueur est un personnage qui doit faire face  et survivre a des vagues d'ennemies.
-* **Aspect technique** : Nous avons integré des behaviors basiques d'IA (wandering , following , scared )
+* **Aspect technique** : Nous avons integré des behaviors basiques d'IA (AGGRESSIVE , FEARFUL , PATROLLER )
 
 ## 3. Difficultés rencontrées 
 
@@ -28,7 +28,10 @@
 * **necessite :**  Un clavier et surtout une **souris**
 * **Contrôles :**  
     - ZQSD pour le deplacement de la camera.
-    - espace recentrer la camera sur le joueur
+    - espace recentrer la camera sur le joueur et le suivre
+    - molette de la souris zoom / de-zoom quand la camera suit le joueur
+    - click molette + deplacement souris rotation autour du joueur
+    - X arreter la navigation du joueur
     - click droit deplacement.
     - I inventaire
     - C jump
