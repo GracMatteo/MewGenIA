@@ -1,10 +1,13 @@
 import { Vector3 } from "@babylonjs/core";
 import type { Player } from "../../player/Player";
+import { BasicActionId } from "../../actions/BasicAction";
 
 export const EnemyActionId = {
     CHASE_TARGET: "CHASE_TARGET",
     FLEE_TARGET: "FLEE_TARGET",
     IDLE: "IDLE",
+    MELEE_ATTACK: "MELEE_ATTACK",
+    RANGED_ATTACK: "RANGED_ATTACK",
     PATROL: "PATROL"
 } as const;
 
@@ -15,6 +18,8 @@ export interface EnemyAgent {
     moveToward(target: Vector3, speedMultiplier?: number): void;
     stopMovement(): void;
     getSpawnPosition(): Vector3;
+    canPerformBasicAction(actionId: BasicActionId, context: { target?: Player; targetPoint?: Vector3 }): boolean;
+    performBasicAction(actionId: BasicActionId, context: { target?: Player; targetPoint?: Vector3 }): void;
 }
 
 export interface EnemyActionContext {
@@ -64,6 +69,54 @@ export class ChaseTargetAction implements EnemyAction {
 
     run(context: EnemyActionContext): void {
         context.enemy.moveToward(context.target.mesh!.position, this._speedMultiplier);
+    }
+}
+
+abstract class TargetBasicAction implements EnemyAction {
+    public abstract readonly id: EnemyActionId;
+    private readonly _basicActionId: BasicActionId;
+    private readonly _cooldownSeconds: number;
+    private _cooldownRemaining = 0;
+
+    constructor(basicActionId: BasicActionId, cooldownSeconds: number) {
+        this._basicActionId = basicActionId;
+        this._cooldownSeconds = cooldownSeconds;
+    }
+
+    canRun(context: EnemyActionContext): boolean {
+        this._cooldownRemaining = Math.max(0, this._cooldownRemaining - context.deltaSeconds);
+
+        if (this._cooldownRemaining > 0 || !hasReadyMeshes(context)) {
+            return false;
+        }
+
+        return context.enemy.canPerformBasicAction(this._basicActionId, {
+            target: context.target
+        });
+    }
+
+    run(context: EnemyActionContext): void {
+        context.enemy.stopMovement();
+        context.enemy.performBasicAction(this._basicActionId, {
+            target: context.target
+        });
+        this._cooldownRemaining = this._cooldownSeconds;
+    }
+}
+
+export class MeleeAttackTargetAction extends TargetBasicAction {
+    public readonly id = EnemyActionId.MELEE_ATTACK;
+
+    constructor(cooldownSeconds: number = 0.85) {
+        super(BasicActionId.MELEE_ATTACK, cooldownSeconds);
+    }
+}
+
+export class RangedAttackTargetAction extends TargetBasicAction {
+    public readonly id = EnemyActionId.RANGED_ATTACK;
+
+    constructor(cooldownSeconds: number = 1.4) {
+        super(BasicActionId.RANGED_ATTACK, cooldownSeconds);
     }
 }
 
