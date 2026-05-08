@@ -4,37 +4,37 @@ import type { Collectable } from "../objects/Collectable";
 
 export class Inventory {
     
-    private items: Map<string, Collectable> = new Map();
+    private items: Collectable[] = [];
     
 
     addItem(item: Collectable): void {
-        if (this.items.has(item.itemName!)) {
-            console.warn(`Item ${item.itemName!} is already in the inventory.`);
-            return;
-        }
-        this.items.set(item.itemName!, item);
+        this.items.push(item);
         console.log(`Added ${item.itemName!} to inventory.`);
     }
 
     getItem(itemName: string): Collectable | undefined {
-        return this.items.get(itemName);
+        return this.items.find(item => item.itemName === itemName);
     }
 
     getItems(): Collectable[] {
-        return Array.from(this.items.values());
+        return [...this.items];
     }
 
-    removeItem(itemName: string): void {
-        if (!this.items.has(itemName)) {
+    removeItem(itemName: string): Collectable | undefined {
+        const itemIndex = this.items.findIndex(item => item.itemName === itemName);
+
+        if (itemIndex === -1) {
             console.warn(`Item ${itemName} not found in inventory.`);
             return;
         }
-        this.items.delete(itemName);
+
+        const [removedItem] = this.items.splice(itemIndex, 1);
         console.log(`Removed ${itemName} from inventory.`);
+        return removedItem;
     }
 
     hasItem(itemName: string): boolean {
-        return this.items.has(itemName);
+        return this.items.some(item => item.itemName === itemName);
     }
 
     
