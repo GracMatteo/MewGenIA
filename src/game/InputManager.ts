@@ -4,10 +4,12 @@ export const Action = {
     ZOOM_IN: "ZOOM_IN",
     ZOOM_OUT: "ZOOM_OUT",
     MENU: "MENU",
+    PLAYER_CAMERA: "PLAYER_CAMERA",
     INVENTORY: "INVENTORY",
     INTERACT: "INTERACT",
     JUMP: "JUMP",
     STOPNAV: "STOPNAV",
+    THROW_GRENADE: "THROW_GRENADE",
     MOVE: "MOVE"
 } as const;
 
@@ -21,10 +23,12 @@ export class InputManager {
         [Action.ZOOM_IN]: ["KeyW", "ArrowUp"],
         [Action.ZOOM_OUT]: ["KeyS", "ArrowDown"],
         [Action.MENU]: ["Escape"],
-        [Action.INVENTORY]: ["KeyI", "KeyE"],
+        [Action.PLAYER_CAMERA]: ["Space"],
+        [Action.INVENTORY]: ["KeyI"],
         [Action.INTERACT]: ["Enter"],
-        [Action.JUMP]: ["Space"],
+        [Action.JUMP]: ["KeyC"],
         [Action.STOPNAV]: ["KeyZ"],
+        [Action.THROW_GRENADE]: ["KeyQ"],
         [Action.MOVE]: ["mouse2"] // Exemple pour une action de mouvement
     };
 
@@ -69,12 +73,12 @@ export class InputManager {
     /**
      * Utilise KeyboardInfo pour le type de retour de l'observable
      */
-    public onActionTriggered(action: Action, callback: () => void): Observer<KeyboardInfo> {
+    public onActionTriggered(action: Action, callback: (kbInfo: KeyboardInfo) => void): Observer<KeyboardInfo> {
         return this._scene.onKeyboardObservable.add((kbInfo: KeyboardInfo) => {
             if (kbInfo.type === KeyboardEventTypes.KEYDOWN) {
                 const keys = this.actionMapping[action];
                 if (keys?.includes(kbInfo.event.code)) {
-                    callback();
+                    callback(kbInfo);
                 }
             }
         });

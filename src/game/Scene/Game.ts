@@ -29,6 +29,8 @@ import "@babylonjs/inspector";
 import { AISoldier } from "../entities/enemies/AISoldier";
 import type { EnemyBehaviorId } from "../entities/enemies/ai/EnemyBehavior";
 import type { PlayerClassId } from "../entities/player/PlayerClass";
+import { Collectable } from "../objects/Collectable";
+import type { Object as GameObject } from "../objects/Object";
 import { BasicActionId } from "../entities/actions/BasicAction";
 
 
@@ -36,7 +38,7 @@ export class GameScene {
     private static readonly WAYPOINT_REACHED_DISTANCE = 0.45;
     private static readonly MAX_PATH_SEGMENT_LENGTH = 2;
     private static readonly ISOMETRIC_CAMERA_OFFSET = new Vector3(-14, 18, -14);
-    private static readonly CAMERA_FREE_KEYS = new Set(["KeyZ", "KeyQ", "KeyS", "KeyD"]);
+    private static readonly CAMERA_FREE_KEYS = new Set(["KeyZ", "KeyS", "KeyD"]);
     private static readonly CAMERA_MIN_HORIZONTAL_DISTANCE = 8;
     private static readonly CAMERA_MAX_HORIZONTAL_DISTANCE = 45;
     private static readonly CAMERA_ZOOM_STEP = 2;
@@ -44,6 +46,15 @@ export class GameScene {
     private static readonly CAMERA_ELEVATION_RATIO =
         GameScene.ISOMETRIC_CAMERA_OFFSET.y /
         Math.hypot(GameScene.ISOMETRIC_CAMERA_OFFSET.x, GameScene.ISOMETRIC_CAMERA_OFFSET.z);
+    private static readonly GRENADE_COUNT = 10;
+    private static readonly GRENADE_PICKUP_DISTANCE = 1.2;
+    private static readonly GRENADE_SPAWN_HEIGHT = 2;
+    private static readonly GRENADE_MIN_SPAWN_SPACING = 5;
+    private static readonly GRENADE_MAX_SPAWN_ATTEMPTS = 50;
+    private static readonly GRENADE_THROW_SPEED = 16;
+    private static readonly GRENADE_THROW_UP_SPEED = 5;
+    private static readonly GRENADE_THROW_FORWARD_OFFSET = 1.2;
+    private static readonly GRENADE_THROW_HEIGHT_OFFSET = 1.2;
 
     public scene: Scene;
     public player!: Player;
@@ -73,9 +84,10 @@ export class GameScene {
     private _pathLine: Mesh | null = null;
     private _activePath: Vector3[] = [];
     private _activePathIndex = 0;
+    private _objects: GameObject[] = [];
     private _jumpTargetingActive = false;
     private _jumpRadiusMesh: Mesh | null = null;
-    private _objects: Object[] = [];
+    //private _objects: Object[] = [];
     private _enemies: AISoldier[] = [];
     public readonly ready: Promise<void>;
 
@@ -133,7 +145,7 @@ export class GameScene {
         this._camera.setTarget(Vector3.Zero());
         this._camera.keysUp = [90]; // Z
         this._camera.keysDown = [83]; // S
-        this._camera.keysLeft = [81]; // Q
+        this._camera.keysLeft = [37]; // ArrowLeft
         this._camera.keysRight = [68]; // D
         this._camera.attachControl(this._engine.getRenderingCanvas(), true);
         this._camera.checkCollisions = true;
@@ -149,12 +161,11 @@ export class GameScene {
 
     private async _initLevel(levelId: LevelId): Promise<void> {
         const levelMeshes = this._buildLevel(levelId);
-        const grenadesReady = this._createGrenades();
 
         this._setupNavMesh(levelMeshes);
         await this._createPlayer();
         await Promise.all([
-            grenadesReady,
+            this._createGrenades(),
             this._createEnemy()
         ]);
 
@@ -164,17 +175,68 @@ export class GameScene {
         this.scene.onBeforeRenderObservable.add(() => this._updatePlayerNavigation());
         this.scene.onBeforeRenderObservable.add(() => this._updateJumpRadius());
         this.scene.onBeforeRenderObservable.add(() => this._updateEnemies());
+        this.scene.onBeforeRenderObservable.add(() => this._updateCollectables());
         this.scene.onBeforeRenderObservable.add(() => this._updateCameraFollow());
     }
 
     private async _createGrenades(): Promise<void> {
-        let nbGrenades = 10;
-        for (let i = 0; i < nbGrenades; i++) {
-            const grenade = new Grenade(this.scene, this._ui, this._shadowGenerator,"grenade_" + i);
+        const spawnPositions: Vector3[] = [];
+
+        for (let i = 0; i < GameScene.GRENADE_COUNT; i++) {
+            const spawnPosition = this._getRandomGrenadeSpawnPosition(spawnPositions);
+            const grenade = new Grenade(this.scene, this._ui, this._shadowGenerator,"grenade_" + i, spawnPosition);
             await grenade.init();
-            grenade.mesh!.position.set(0, 4 + i, 0);
+            spawnPositions.push(spawnPosition);
             this._objects.push(grenade);
         }
+    }
+
+    private _getRandomGrenadeSpawnPosition(existingPositions: Vector3[]): Vector3 {
+        const halfExtent = this._getLevelSpawnHalfExtent();
+
+        for (let attempt = 0; attempt < GameScene.GRENADE_MAX_SPAWN_ATTEMPTS; attempt++) {
+            const randomPoint = new Vector3(
+                this._randomBetween(-halfExtent, halfExtent),
+                0,
+                this._randomBetween(-halfExtent, halfExtent)
+            );
+            const navPoint = this._navigationPlugin.getClosestPoint(randomPoint);
+
+            if (this._isSpawnPositionFarEnough(navPoint, existingPositions)) {
+                navPoint.y += GameScene.GRENADE_SPAWN_HEIGHT;
+                return navPoint;
+            }
+        }
+
+        const fallbackPosition = this._navigationPlugin.getClosestPoint(Vector3.Zero());
+        fallbackPosition.y += GameScene.GRENADE_SPAWN_HEIGHT + existingPositions.length;
+        return fallbackPosition;
+    }
+
+    private _getLevelSpawnHalfExtent(): number {
+        switch (this._level.id) {
+            case LEVEL_IDS.LEVEL_1:
+                return 90;
+            case LEVEL_IDS.TESTING_GROUND:
+                return 55;
+            default:
+                return 50;
+        }
+    }
+
+    private _isSpawnPositionFarEnough(position: Vector3, existingPositions: Vector3[]): boolean {
+        return existingPositions.every((existingPosition) => {
+            const planarDistance = Vector3.Distance(
+                new Vector3(position.x, 0, position.z),
+                new Vector3(existingPosition.x, 0, existingPosition.z)
+            );
+
+            return planarDistance >= GameScene.GRENADE_MIN_SPAWN_SPACING;
+        });
+    }
+
+    private _randomBetween(min: number, max: number): number {
+        return min + Math.random() * (max - min);
     }
 
     private _setupMenuShortcut(): void {
@@ -191,6 +253,76 @@ export class GameScene {
             this.player?.disselected();
         });
 
+        this._inputManager.onActionTriggered(Action.THROW_GRENADE, () => {
+            void this._throwGrenade();
+        });
+    }
+
+    private async _throwGrenade(): Promise<void> {
+        if (!this.player?.mesh || !this.player.inventory.hasItem("Grenade")) {
+            return;
+        }
+
+        this.player.inventory.removeItem("Grenade");
+        this.player.inventoryUI.refresh();
+
+        const throwDirection = this._getMouseThrowDirection();
+
+        const spawnPosition = this.player.mesh.position
+            .add(throwDirection.scale(GameScene.GRENADE_THROW_FORWARD_OFFSET))
+            .add(new Vector3(0, GameScene.GRENADE_THROW_HEIGHT_OFFSET, 0));
+        const grenade = new Grenade(
+            this.scene,
+            this._ui,
+            this._shadowGenerator,
+            `thrown_grenade_${Date.now()}`,
+            spawnPosition
+        );
+
+        await grenade.init();
+        grenade.activate(() => {
+            this._objects = this._objects.filter((object) => object !== grenade);
+        });
+        grenade.SphereAggregate.body.setLinearVelocity(
+            throwDirection
+                .scale(GameScene.GRENADE_THROW_SPEED)
+                .add(new Vector3(0, GameScene.GRENADE_THROW_UP_SPEED, 0))
+        );
+        this._objects.push(grenade);
+    }
+
+    private _getMouseThrowDirection(): Vector3 {
+        const playerMesh = this.player.mesh;
+
+        if (!playerMesh) {
+            return Vector3.Forward();
+        }
+
+        const fallbackDirection = new Vector3(
+            Math.sin(playerMesh.rotation.y),
+            0,
+            Math.cos(playerMesh.rotation.y)
+        ).normalize();
+        const pickInfo = this.scene.pick(
+            this.scene.pointerX,
+            this.scene.pointerY,
+            (mesh) => mesh.isPickable && mesh !== playerMesh && !mesh.name.startsWith("player"),
+            false,
+            this._camera
+        );
+
+        if (!pickInfo?.hit || !pickInfo.pickedPoint) {
+            return fallbackDirection;
+        }
+
+        const throwDirection = pickInfo.pickedPoint.subtract(playerMesh.position);
+        throwDirection.y = 0;
+
+        if (throwDirection.lengthSquared() < 0.001) {
+            return fallbackDirection;
+        }
+
+        return throwDirection.normalize();
         this._inputManager.onActionTriggered(Action.JUMP, () => {
             if (!this.player?.isSelected) {
                 return;
@@ -203,19 +335,18 @@ export class GameScene {
     }
 
     private _setupCameraShortcuts(): void {
+        this._inputManager.onActionTriggered(Action.PLAYER_CAMERA, (kbInfo) => {
+            kbInfo.event.preventDefault();
+            this._isCameraFollowingPlayer = true;
+            this._updateCameraFollow();
+        });
+
         this.scene.onKeyboardObservable.add((kbInfo) => {
             if (kbInfo.type !== KeyboardEventTypes.KEYDOWN) {
                 return;
             }
 
             const code = kbInfo.event.code;
-
-            if (code === "Space") {
-                kbInfo.event.preventDefault();
-                this._isCameraFollowingPlayer = true;
-                this._updateCameraFollow();
-                return;
-            }
 
             if (GameScene.CAMERA_FREE_KEYS.has(code)) {
                 this._isCameraFollowingPlayer = false;
@@ -761,6 +892,35 @@ export class GameScene {
 
         const deltaSeconds = this.scene.getEngine().getDeltaTime() / 1000;
         this._enemies.forEach((enemy) => enemy.update(this.player, deltaSeconds));
+    }
+
+    private _updateCollectables(): void {
+        if (!this.player?.mesh) {
+            return;
+        }
+
+        for (let i = this._objects.length - 1; i >= 0; i--) {
+            const object = this._objects[i];
+
+            if (!(object instanceof Collectable) || !object.mesh) {
+                continue;
+            }
+
+            if (object instanceof Grenade && object.isActivated) {
+                continue;
+            }
+
+            const distanceToPlayer = Vector3.Distance(this.player.mesh.position, object.mesh.position);
+
+            if (distanceToPlayer > GameScene.GRENADE_PICKUP_DISTANCE) {
+                continue;
+            }
+
+            this.player.inventory.addItem(object);
+            this.player.inventoryUI.refresh();
+            object.collect(this.player);
+            this._objects.splice(i, 1);
+        }
     }
 
     private async _createPlayer(): Promise<void> 
