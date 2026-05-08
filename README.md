@@ -40,5 +40,5 @@
 
 ## 5.Liens
 * **Jeux :** https://mew-gen-ia.vercel.app/
-* **youtube :**https://www.youtube.com/@MewGenIA 
+* **youtube :** https://www.youtube.com/@MewGenIA 
 
