@@ -18,9 +18,9 @@ import { Collectable } from "../Collectable";
 
 export class Grenade extends Collectable {
     private static readonly EXPLOSION_DELAY_MS = 5000;
-    private static readonly EXPLOSION_PARTICLE_LIFETIME_MS = 900;
+    private static readonly EXPLOSION_PARTICLE_LIFETIME_MS = 2000;
     private static readonly PARTICLE_TEXTURE =
-        "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAFgwJ/lA41nwAAAABJRU5ErkJggg==";
+        "/particles/explosion_particle.png";
 
     public itemName: string = "Grenade";
     public iconPath: string = "/icons/grenade.png";

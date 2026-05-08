@@ -256,6 +256,16 @@ export class GameScene {
         this._inputManager.onActionTriggered(Action.THROW_GRENADE, () => {
             void this._throwGrenade();
         });
+
+        this._inputManager.onActionTriggered(Action.JUMP, () => {
+            if (!this.player?.isSelected) {
+                return;
+            }
+
+            this._clearPath();
+            this.player.stopMovement();
+            this._setJumpTargeting(!this._jumpTargetingActive);
+        });
     }
 
     private async _throwGrenade(): Promise<void> {
@@ -323,15 +333,6 @@ export class GameScene {
         }
 
         return throwDirection.normalize();
-        this._inputManager.onActionTriggered(Action.JUMP, () => {
-            if (!this.player?.isSelected) {
-                return;
-            }
-
-            this._clearPath();
-            this.player.stopMovement();
-            this._setJumpTargeting(!this._jumpTargetingActive);
-        });
     }
 
     private _setupCameraShortcuts(): void {

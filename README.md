@@ -32,7 +32,7 @@
     - molette de la souris zoom / de-zoom quand la camera suit le joueur
     - click molette + deplacement souris rotation autour du joueur
     - X arreter la navigation du joueur
-    - click droit deplacement.
+    - click gauche deplacement.
     - I inventaire
     - C jump
 
