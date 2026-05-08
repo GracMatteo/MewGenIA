@@ -8,12 +8,12 @@ export class Inventory {
     
 
     addItem(item: Collectable): void {
-        if (this.items.has(item.itemName)) {
-            console.warn(`Item ${item.itemName} is already in the inventory.`);
+        if (this.items.has(item.itemName!)) {
+            console.warn(`Item ${item.itemName!} is already in the inventory.`);
             return;
         }
-        this.items.set(item.itemName, item);
-        console.log(`Added ${item.itemName} to inventory.`);
+        this.items.set(item.itemName!, item);
+        console.log(`Added ${item.itemName!} to inventory.`);
     }
 
     getItem(itemName: string): Collectable | undefined {

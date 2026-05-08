@@ -1,6 +1,5 @@
 import { Color3, MeshBuilder, PhysicsAggregate, PhysicsMotionType, PhysicsShapeType, Scene, ShadowGenerator, StandardMaterial } from "@babylonjs/core";
 import type { AdvancedDynamicTexture } from "@babylonjs/gui";
-import { Object } from "../Object";
 import { Collectable } from "../Collectable";
 
 
