@@ -4,6 +4,7 @@ import {
     Engine,
     FreeCamera,
     HavokPlugin,
+    KeyboardEventTypes,
     Mesh,
     MeshBuilder,
     PhysicsAggregate,
@@ -34,6 +35,15 @@ import { BasicActionId } from "../entities/actions/BasicAction";
 export class GameScene {
     private static readonly WAYPOINT_REACHED_DISTANCE = 0.45;
     private static readonly MAX_PATH_SEGMENT_LENGTH = 2;
+    private static readonly ISOMETRIC_CAMERA_OFFSET = new Vector3(-14, 18, -14);
+    private static readonly CAMERA_FREE_KEYS = new Set(["KeyZ", "KeyQ", "KeyS", "KeyD"]);
+    private static readonly CAMERA_MIN_HORIZONTAL_DISTANCE = 8;
+    private static readonly CAMERA_MAX_HORIZONTAL_DISTANCE = 45;
+    private static readonly CAMERA_ZOOM_STEP = 2;
+    private static readonly CAMERA_ORBIT_SPEED = 0.01;
+    private static readonly CAMERA_ELEVATION_RATIO =
+        GameScene.ISOMETRIC_CAMERA_OFFSET.y /
+        Math.hypot(GameScene.ISOMETRIC_CAMERA_OFFSET.x, GameScene.ISOMETRIC_CAMERA_OFFSET.z);
 
     public scene: Scene;
     public player!: Player;
@@ -50,6 +60,16 @@ export class GameScene {
     private _shadowGenerator!: ShadowGenerator;
     private _inputManager: InputManager;
     private _camera!: FreeCamera;
+    private _isCameraFollowingPlayer = false;
+    private _isCameraOrbitingPlayer = false;
+    private _cameraFollowYaw = Math.atan2(
+        GameScene.ISOMETRIC_CAMERA_OFFSET.x,
+        GameScene.ISOMETRIC_CAMERA_OFFSET.z
+    );
+    private _cameraFollowHorizontalDistance = Math.hypot(
+        GameScene.ISOMETRIC_CAMERA_OFFSET.x,
+        GameScene.ISOMETRIC_CAMERA_OFFSET.z
+    );
     private _pathLine: Mesh | null = null;
     private _activePath: Vector3[] = [];
     private _activePathIndex = 0;
@@ -94,6 +114,7 @@ export class GameScene {
         
         // 4. Entités
         this._setupMenuShortcut();
+        this._setupCameraShortcuts();
         this.ready = this._initLevel(this._level.id);
     }
 
@@ -143,6 +164,7 @@ export class GameScene {
         this.scene.onBeforeRenderObservable.add(() => this._updatePlayerNavigation());
         this.scene.onBeforeRenderObservable.add(() => this._updateJumpRadius());
         this.scene.onBeforeRenderObservable.add(() => this._updateEnemies());
+        this.scene.onBeforeRenderObservable.add(() => this._updateCameraFollow());
     }
 
     private async _createGrenades(): Promise<void> {
@@ -178,6 +200,89 @@ export class GameScene {
             this.player.stopMovement();
             this._setJumpTargeting(!this._jumpTargetingActive);
         });
+    }
+
+    private _setupCameraShortcuts(): void {
+        this.scene.onKeyboardObservable.add((kbInfo) => {
+            if (kbInfo.type !== KeyboardEventTypes.KEYDOWN) {
+                return;
+            }
+
+            const code = kbInfo.event.code;
+
+            if (code === "Space") {
+                kbInfo.event.preventDefault();
+                this._isCameraFollowingPlayer = true;
+                this._updateCameraFollow();
+                return;
+            }
+
+            if (GameScene.CAMERA_FREE_KEYS.has(code)) {
+                this._isCameraFollowingPlayer = false;
+            }
+        });
+
+        this.scene.onPointerObservable.add((pointerInfo) => {
+            const event = pointerInfo.event;
+
+            if (pointerInfo.type === PointerEventTypes.POINTERUP && event.button === 1) {
+                this._isCameraOrbitingPlayer = false;
+                return;
+            }
+
+            if (!this._isCameraFollowingPlayer) {
+                return;
+            }
+
+            if (pointerInfo.type === PointerEventTypes.POINTERWHEEL) {
+                event.preventDefault();
+                const deltaY = (event as unknown as { deltaY: number }).deltaY;
+                const zoomDirection = Math.sign(deltaY);
+
+                if (zoomDirection !== 0) {
+                    this._cameraFollowHorizontalDistance = this._clamp(
+                        this._cameraFollowHorizontalDistance + zoomDirection * GameScene.CAMERA_ZOOM_STEP,
+                        GameScene.CAMERA_MIN_HORIZONTAL_DISTANCE,
+                        GameScene.CAMERA_MAX_HORIZONTAL_DISTANCE
+                    );
+                    this._updateCameraFollow();
+                }
+
+                return;
+            }
+
+            if (pointerInfo.type === PointerEventTypes.POINTERDOWN && event.button === 1) {
+                event.preventDefault();
+                this._isCameraOrbitingPlayer = true;
+                return;
+            }
+
+            if (pointerInfo.type === PointerEventTypes.POINTERMOVE && this._isCameraOrbitingPlayer) {
+                event.preventDefault();
+                this._cameraFollowYaw -= event.movementX * GameScene.CAMERA_ORBIT_SPEED;
+                this._updateCameraFollow();
+            }
+        });
+    }
+
+    private _updateCameraFollow(): void {
+        if (!this._isCameraFollowingPlayer || !this.player?.mesh) {
+            return;
+        }
+
+        const playerPosition = this.player.mesh.position;
+        const cameraOffset = new Vector3(
+            Math.sin(this._cameraFollowYaw) * this._cameraFollowHorizontalDistance,
+            this._cameraFollowHorizontalDistance * GameScene.CAMERA_ELEVATION_RATIO,
+            Math.cos(this._cameraFollowYaw) * this._cameraFollowHorizontalDistance
+        );
+
+        this._camera.position.copyFrom(playerPosition.add(cameraOffset));
+        this._camera.setTarget(playerPosition);
+    }
+
+    private _clamp(value: number, min: number, max: number): number {
+        return Math.min(Math.max(value, min), max);
     }
 
     private _buildLevel(levelId: LevelId): Mesh[] {
