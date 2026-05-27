@@ -29,7 +29,7 @@ export class InputManager {
         [Action.JUMP]: ["KeyC"],
         [Action.STOPNAV]: ["KeyZ"],
         [Action.THROW_GRENADE]: ["KeyQ"],
-        [Action.MOVE]: ["mouse2"] // Exemple pour une action de mouvement
+        [Action.MOVE]: ["mouse1"] // Exemple pour une action de mouvement
     };
 
     constructor(scene: Scene) {

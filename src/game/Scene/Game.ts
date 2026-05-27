@@ -4,6 +4,7 @@ import {
     Engine,
     FreeCamera,
     HavokPlugin,
+    ImportMeshAsync,
     KeyboardEventTypes,
     Mesh,
     MeshBuilder,
@@ -37,12 +38,13 @@ import { BasicActionId } from "../entities/actions/BasicAction";
 export class GameScene {
     private static readonly WAYPOINT_REACHED_DISTANCE = 0.45;
     private static readonly MAX_PATH_SEGMENT_LENGTH = 2;
+    private static readonly EXTERIOR_MODEL_ROOT = "/models/exterieur/";
     private static readonly ISOMETRIC_CAMERA_OFFSET = new Vector3(-14, 18, -14);
-    private static readonly CAMERA_FREE_KEYS = new Set(["KeyZ", "KeyS", "KeyD"]);
+    private static readonly CAMERA_FREE_KEYS = new Set(["KeyZ", "KeyS", "KeyD", "KeyQ", "KeyA"]);
     private static readonly CAMERA_MIN_HORIZONTAL_DISTANCE = 8;
     private static readonly CAMERA_MAX_HORIZONTAL_DISTANCE = 45;
     private static readonly CAMERA_ZOOM_STEP = 2;
-    private static readonly CAMERA_ORBIT_SPEED = 0.01;
+    private static readonly CAMERA_ORBIT_SPEED = 0.01;  
     private static readonly CAMERA_ELEVATION_RATIO =
         GameScene.ISOMETRIC_CAMERA_OFFSET.y /
         Math.hypot(GameScene.ISOMETRIC_CAMERA_OFFSET.x, GameScene.ISOMETRIC_CAMERA_OFFSET.z);
@@ -145,7 +147,7 @@ export class GameScene {
         this._camera.setTarget(Vector3.Zero());
         this._camera.keysUp = [90]; // Z
         this._camera.keysDown = [83]; // S
-        this._camera.keysLeft = [37]; // ArrowLeft
+        this._camera.keysLeft = [81, 65, 37]; // Q / A / ArrowLeft
         this._camera.keysRight = [68]; // D
         this._camera.attachControl(this._engine.getRenderingCanvas(), true);
         this._camera.checkCollisions = true;
@@ -160,7 +162,7 @@ export class GameScene {
     }
 
     private async _initLevel(levelId: LevelId): Promise<void> {
-        const levelMeshes = this._buildLevel(levelId);
+        const levelMeshes = await this._buildLevel(levelId);
 
         this._setupNavMesh(levelMeshes);
         await this._createPlayer();
@@ -417,7 +419,7 @@ export class GameScene {
         return Math.min(Math.max(value, min), max);
     }
 
-    private _buildLevel(levelId: LevelId): Mesh[] {
+    private async _buildLevel(levelId: LevelId): Promise<Mesh[]> {
         switch (levelId) {
             case LEVEL_IDS.LEVEL_1:
                 return this._buildLevel1();
@@ -428,16 +430,250 @@ export class GameScene {
         }
     }
 
-    private _buildLevel1(): Mesh[] {
+    private async _buildLevel1(): Promise<Mesh[]> {
         const ground = this._createGround("level1_ground", 200, 200);
+        const levelMeshes: Mesh[] = [ground];
 
-        const cube = MeshBuilder.CreateBox("level1_obstacle_cube", { size: 4 }, this.scene);
-        cube.position = new Vector3(15, 2, 0);
+        const groundMaterial = new StandardMaterial("level1GroundMat", this.scene);
+        groundMaterial.diffuseColor = new Color3(0.42, 0.55, 0.34);
+        ground.material = groundMaterial;
 
-        const wall = MeshBuilder.CreateBox("level1_wall", { width: 4, height: 4, depth: 18 }, this.scene);
-        wall.position = new Vector3(-15, 2, 12);
+        levelMeshes.push(...await this._createLevel1City());
 
-        return [ground, cube, wall];
+        return levelMeshes;
+    }
+
+    private async _createLevel1City(): Promise<Mesh[]> {
+        const cityColliders: Mesh[] = [];
+
+        await Promise.all([
+            this._createLevel1Roads(),
+            this._createLevel1Buildings(cityColliders),
+            this._createLevel1Fences(cityColliders),
+            this._createLevel1Trees(cityColliders)
+        ]);
+
+        return cityColliders;
+    }
+
+    private async _createLevel1Roads(): Promise<void> {
+        const roadScale = new Vector3(35, 1, 35);
+        const roadSegments = [-42, -28, -14, 0, 14, 28, 42];
+
+        await Promise.all([
+            ...roadSegments.map((z, index) =>
+                this._importExteriorModel(
+                    "path_long.glb",
+                    `level1_road_north_south_${index}`,
+                    new Vector3(0, 0.03, z),
+                    0,
+                    roadScale,
+                    false
+                )
+            ),
+            ...roadSegments
+                .filter((x) => x !== 0)
+                .map((x, index) =>
+                    this._importExteriorModel(
+                        "path_long.glb",
+                        `level1_road_east_west_${index}`,
+                        new Vector3(x, 0.035, 0),
+                        Math.PI / 2,
+                        roadScale,
+                        false
+                    )
+                ),
+            this._importExteriorModel(
+                "path_short.glb",
+                "level1_road_crossing",
+                new Vector3(0, 0.04, 0),
+                0,
+                roadScale,
+                false
+            )
+        ]);
+    }
+
+    private async _createLevel1Buildings(cityColliders: Mesh[]): Promise<void> {
+        const buildings = [
+            { file: "house_type02.glb", name: "bakery", position: new Vector3(-18, 0, -36), rotation: Math.PI / 2, scale: 8.5 },
+            { file: "house_type06.glb", name: "workshop", position: new Vector3(18, 0, -36), rotation: -Math.PI / 2, scale: 8.2 },
+            { file: "house_type10.glb", name: "corner_shop", position: new Vector3(-36, 0, -18), rotation: Math.PI, scale: 7.8 },
+            { file: "house_type08.glb", name: "town_house", position: new Vector3(36, 0, -18), rotation: 0, scale: 8 },
+            { file: "house_type17.glb", name: "clinic", position: new Vector3(-36, 0, 18), rotation: Math.PI, scale: 8.2 },
+            { file: "house_type12.glb", name: "station", position: new Vector3(36, 0, 18), rotation: 0, scale: 8.2 },
+            { file: "house_type03.glb", name: "north_row_a", position: new Vector3(-18, 0, 36), rotation: Math.PI / 2, scale: 8 },
+            { file: "house_type11.glb", name: "north_row_b", position: new Vector3(18, 0, 36), rotation: -Math.PI / 2, scale: 8.2 },
+            { file: "house_type05.glb", name: "south_square_a", position: new Vector3(-54, 0, 8), rotation: Math.PI / 2, scale: 7.5 },
+            { file: "house_type18.glb", name: "south_square_b", position: new Vector3(54, 0, -8), rotation: -Math.PI / 2, scale: 7.8 }
+        ];
+
+        await Promise.all(buildings.map(async (building) => {
+            const meshes = await this._importExteriorModel(
+                building.file,
+                `level1_house_${building.name}`,
+                building.position,
+                building.rotation,
+                building.scale,
+                true
+            );
+            const collider = this._createColliderFromMeshes(
+                `level1_house_${building.name}_collider`,
+                meshes,
+                0.82,
+                0.92
+            );
+            cityColliders.push(collider);
+        }));
+    }
+
+    private async _createLevel1Fences(cityColliders: Mesh[]): Promise<void> {
+        const fences = [
+            { file: "fence_wide.glb", name: "north_yard_front", position: new Vector3(-18, 0, -26), rotation: 0, scale: 9 },
+            { file: "fence_wide.glb", name: "north_yard_back", position: new Vector3(18, 0, -26), rotation: 0, scale: 9 },
+            { file: "fence_large.glb", name: "west_square", position: new Vector3(-54, 0, 18), rotation: Math.PI / 2, scale: 8 },
+            { file: "fence_large.glb", name: "east_square", position: new Vector3(54, 0, -18), rotation: Math.PI / 2, scale: 8 },
+            { file: "fence_open.glb", name: "park_gate_left", position: new Vector3(-10, 0, 56), rotation: 0, scale: 8 },
+            { file: "fence_open.glb", name: "park_gate_right", position: new Vector3(10, 0, 56), rotation: 0, scale: 8 }
+        ];
+
+        await Promise.all(fences.map(async (fence) => {
+            const meshes = await this._importExteriorModel(
+                fence.file,
+                `level1_fence_${fence.name}`,
+                fence.position,
+                fence.rotation,
+                fence.scale,
+                true
+            );
+            const collider = this._createColliderFromMeshes(
+                `level1_fence_${fence.name}_collider`,
+                meshes,
+                0.9,
+                0.9
+            );
+            cityColliders.push(collider);
+        }));
+    }
+
+    private async _createLevel1Trees(cityColliders: Mesh[]): Promise<void> {
+        const trees = [
+            { file: "tree_large.glb", name: "park_0", position: new Vector3(-42, 0, 52), scale: 9 },
+            { file: "tree_small.glb", name: "park_1", position: new Vector3(-30, 0, 58), scale: 8 },
+            { file: "tree_large.glb", name: "park_2", position: new Vector3(30, 0, 58), scale: 9 },
+            { file: "tree_small.glb", name: "park_3", position: new Vector3(42, 0, 52), scale: 8 },
+            { file: "tree_large.glb", name: "avenue_0", position: new Vector3(-10, 0, -52), scale: 8 },
+            { file: "tree_small.glb", name: "avenue_1", position: new Vector3(10, 0, -52), scale: 7 },
+            { file: "tree_large.glb", name: "west_0", position: new Vector3(-62, 0, -36), scale: 8 },
+            { file: "tree_small.glb", name: "east_0", position: new Vector3(62, 0, 36), scale: 7 }
+        ];
+
+        await Promise.all(trees.map(async (tree) => {
+            const meshes = await this._importExteriorModel(
+                tree.file,
+                `level1_tree_${tree.name}`,
+                tree.position,
+                0,
+                tree.scale,
+                true
+            );
+            const collider = this._createColliderFromMeshes(
+                `level1_tree_${tree.name}_collider`,
+                meshes,
+                0.35,
+                0.8
+            );
+            cityColliders.push(collider);
+        }));
+    }
+
+    private async _importExteriorModel(
+        fileName: string,
+        instanceName: string,
+        position: Vector3,
+        rotationY: number,
+        scale: number | Vector3,
+        castsShadow: boolean
+    ): Promise<Mesh[]> {
+        const result = await ImportMeshAsync(`${GameScene.EXTERIOR_MODEL_ROOT}${fileName}`, this.scene);
+        const meshes = result.meshes.filter((mesh): mesh is Mesh => mesh instanceof Mesh);
+        const root = meshes[0];
+
+        if (root) {
+            root.name = `${instanceName}_root`;
+            root.rotationQuaternion = null;
+            root.position.copyFrom(position);
+            root.rotation.y = rotationY;
+            if (typeof scale === "number") {
+                root.scaling.setAll(scale);
+            } else {
+                root.scaling.copyFrom(scale);
+            }
+            root.computeWorldMatrix(true);
+        }
+
+        meshes.forEach((mesh, index) => {
+            if (index > 0) {
+                mesh.name = `${instanceName}_${mesh.name}`;
+            }
+            mesh.isPickable = true;
+            mesh.receiveShadows = true;
+            mesh.computeWorldMatrix(true);
+
+            if (castsShadow) {
+                this._shadowGenerator.addShadowCaster(mesh);
+            }
+        });
+
+        return meshes;
+    }
+
+    private _createColliderFromMeshes(
+        name: string,
+        meshes: Mesh[],
+        footprintScale: number,
+        heightScale: number
+    ): Mesh {
+        const bounds = this._getMeshesBounds(meshes);
+        const size = bounds.max.subtract(bounds.min);
+        const center = bounds.min.add(size.scale(0.5));
+        const colliderHeight = Math.max(0.8, size.y * heightScale);
+
+        const collider = MeshBuilder.CreateBox(
+            name,
+            {
+                width: Math.max(0.8, size.x * footprintScale),
+                height: colliderHeight,
+                depth: Math.max(0.8, size.z * footprintScale)
+            },
+            this.scene
+        );
+        collider.position = new Vector3(center.x, colliderHeight / 2, center.z);
+        collider.isVisible = false;
+        collider.isPickable = false;
+        this._makeStaticCollider(collider);
+
+        return collider;
+    }
+
+    private _getMeshesBounds(meshes: Mesh[]): { min: Vector3; max: Vector3 } {
+        const renderMeshes = meshes.filter((mesh) => mesh.getTotalVertices() > 0);
+        let min = new Vector3(Number.POSITIVE_INFINITY, Number.POSITIVE_INFINITY, Number.POSITIVE_INFINITY);
+        let max = new Vector3(Number.NEGATIVE_INFINITY, Number.NEGATIVE_INFINITY, Number.NEGATIVE_INFINITY);
+
+        renderMeshes.forEach((mesh) => {
+            mesh.computeWorldMatrix(true);
+            const boundingInfo = mesh.getBoundingInfo();
+            min = Vector3.Minimize(min, boundingInfo.boundingBox.minimumWorld);
+            max = Vector3.Maximize(max, boundingInfo.boundingBox.maximumWorld);
+        });
+
+        if (renderMeshes.length === 0) {
+            min = Vector3.Zero();
+            max = Vector3.One();
+        }
+
+        return { min, max };
     }
 
     private _buildTestingGround(): Mesh[] {
