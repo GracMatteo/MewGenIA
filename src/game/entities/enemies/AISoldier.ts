@@ -57,7 +57,7 @@ export class AISoldier extends Entity
         modelRoot.rotation.y = Math.PI;
         this.visualMeshes = result.meshes;
         this.visualMeshes.forEach((mesh) => {
-            mesh.isPickable = false;
+            mesh.isPickable = true;
         });
 
         // Mesh invisible pour la physique
@@ -100,7 +100,7 @@ export class AISoldier extends Entity
     
     update(target?: Player, deltaSeconds: number = this.scene.getEngine().getDeltaTime() / 1000)
     {
-        if (!target || !this.mesh || !target.mesh) {
+        if (this.isDead || !target || target.isDead || !this.mesh || !target.mesh) {
             this.stopMovement();
             return;
         }
@@ -154,6 +154,12 @@ export class AISoldier extends Entity
 
         const currentVelocity = this.capsuleAggregate.body.getLinearVelocity();
         this.capsuleAggregate.body.setLinearVelocity(new Vector3(0, currentVelocity?.y ?? 0, 0));
+    }
+
+    protected override onDeath(): void
+    {
+        this.stopMovement();
+        this.dispose();
     }
 
 }

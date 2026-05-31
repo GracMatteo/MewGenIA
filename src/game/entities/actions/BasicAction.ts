@@ -33,11 +33,11 @@ function getPlanarDistance(a: Vector3, b: Vector3): number {
 }
 
 function hasActorReady(context: BasicActionContext): boolean {
-    return Boolean(context.actor.mesh);
+    return Boolean(context.actor.mesh && !context.actor.isDead);
 }
 
 function hasTargetReady(context: BasicActionContext): boolean {
-    return Boolean(context.actor.mesh && context.target?.mesh);
+    return Boolean(context.actor.mesh && !context.actor.isDead && context.target?.mesh && !context.target.isDead);
 }
 
 export class MeleeAttackAction implements BasicAction {
@@ -63,6 +63,7 @@ export class MeleeAttackAction implements BasicAction {
 
         const damage = Math.max(1, context.actor.stats?.attack ?? 1);
         context.actor.faceTarget(context.target!.mesh!.position);
+        context.actor.playMeleeAttackEffect(context.target!.mesh!.position);
         context.target!.receiveDamage(damage);
 
         return { success: true, damage };
@@ -93,12 +94,20 @@ export class RangedAttackAction implements BasicAction {
         const stats = context.actor.stats;
         const accuracy = stats?.accuracy ?? 1;
         context.actor.faceTarget(context.target!.mesh!.position);
+        const blockPoint = context.actor.getRangedAttackBlockPoint(context.target!);
+
+        if (blockPoint) {
+            context.actor.playRangedAttackEffect(blockPoint, false);
+            return { success: true, damage: 0, message: "Ranged attack blocked by cover." };
+        }
 
         if (Math.random() > accuracy) {
+            context.actor.playRangedAttackEffect(context.target!.getProjectileAimPoint(), false);
             return { success: true, damage: 0, message: "Ranged attack missed." };
         }
 
         const damage = Math.max(1, Math.round((stats?.attack ?? 1) * 0.8));
+        context.actor.playRangedAttackEffect(context.target!.getProjectileAimPoint(), true);
         context.target!.receiveDamage(damage);
 
         return { success: true, damage };

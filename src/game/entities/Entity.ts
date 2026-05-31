@@ -1,4 +1,16 @@
-import { AbstractMesh, ActionManager, Color3, ExecuteCodeAction, PhysicsAggregate, Vector3, type Scene, type ShadowGenerator } from "@babylonjs/core";
+import {
+    AbstractMesh,
+    ActionManager,
+    Color3,
+    ExecuteCodeAction,
+    MeshBuilder,
+    PhysicsAggregate,
+    Ray,
+    StandardMaterial,
+    Vector3,
+    type Scene,
+    type ShadowGenerator
+} from "@babylonjs/core";
 import type { EntityInfo } from "./EntityInfo";
 import { Control, Rectangle, TextBlock, type AdvancedDynamicTexture } from "@babylonjs/gui";
 import {
@@ -25,6 +37,7 @@ export abstract class Entity
     protected hoverUIPanel!: Rectangle;
     private readonly _basicActions: Record<BasicActionId, BasicAction> = createBasicActionSet();
     private _currentHp: number | null = null;
+    private _damageFlashToken = 0;
 
     public isSelected : boolean = false;
 
@@ -55,6 +68,14 @@ export abstract class Entity
 
     get currentHp(): number {
         return this._currentHp ?? this.stats?.hp ?? 0;
+    }
+
+    get maxHp(): number {
+        return this.stats?.hp ?? 0;
+    }
+
+    get isDead(): boolean {
+        return this.maxHp > 0 && this.currentHp <= 0;
     }
 
     protected initializeActionState(): void {
@@ -90,12 +111,73 @@ export abstract class Entity
     }
 
     public receiveDamage(amount: number): void {
-        if (!this.stats) {
+        if (!this.stats || this.isDead) {
             return;
         }
 
         this._currentHp = Math.max(0, this.currentHp - Math.max(0, amount));
         console.log(`${this.info.name} took ${amount} damage. HP: ${this._currentHp}/${this.stats.hp}`);
+        this.flashDamageFeedback();
+
+        if (this.isDead) {
+            this.onDeath();
+        }
+    }
+
+    protected onDeath(): void {
+    }
+
+    public dispose(): void {
+        if (this.hoverUIPanel) {
+            this.hoverUIPanel.dispose();
+        }
+
+        this.aggregate?.dispose();
+        this.mesh?.dispose();
+        this.visualMeshes.forEach((mesh) => mesh.dispose());
+        this.visualMeshes = [];
+        this.mesh = undefined;
+        this.aggregate = undefined;
+    }
+
+    public ownsMesh(candidate?: AbstractMesh | null): boolean {
+        if (!candidate) {
+            return false;
+        }
+
+        return candidate === this.mesh ||
+            this.visualMeshes.some((mesh) => candidate === mesh || candidate.isDescendantOf(mesh));
+    }
+
+    public getRangedAttackBlockPoint(target: Entity): Vector3 | null {
+        if (!this.mesh || !target.mesh) {
+            return null;
+        }
+
+        const start = this.getProjectileAimPoint();
+        const end = target.getProjectileAimPoint();
+        const direction = end.subtract(start);
+        const distance = direction.length();
+
+        if (distance <= 0.001) {
+            return null;
+        }
+
+        direction.normalize();
+        const ray = new Ray(start, direction, distance);
+        const hit = this.scene.pickWithRay(ray, (mesh) => {
+            return mesh.isPickable &&
+                mesh.isEnabled() &&
+                mesh.isVisible &&
+                !this.ownsMesh(mesh) &&
+                !target.ownsMesh(mesh);
+        });
+
+        if (!hit?.hit || !hit.pickedPoint) {
+            return null;
+        }
+
+        return hit.pickedPoint.clone();
     }
 
     public faceTarget(targetPosition: Vector3): void {
@@ -138,7 +220,129 @@ export abstract class Entity
         );
 
         body.setLinearVelocity(velocity);
+        window.setTimeout(() => this.stopHorizontalVelocity(), (duration + 0.08) * 1000);
         return true;
+    }
+
+    public stopHorizontalVelocity(): void {
+        const body = this.aggregate?.body;
+        if (!body) {
+            return;
+        }
+
+        const currentVelocity = body.getLinearVelocity();
+        body.setLinearVelocity(new Vector3(0, currentVelocity?.y ?? 0, 0));
+    }
+
+    public playMeleeAttackEffect(targetPosition: Vector3): void {
+        const impact = MeshBuilder.CreateTorus(
+            `${this.modelName}_melee_impact`,
+            { diameter: 1.25, thickness: 0.08, tessellation: 32 },
+            this.scene
+        );
+        impact.position.copyFrom(targetPosition);
+        impact.position.y += 0.9;
+        impact.rotation.x = Math.PI / 2;
+        impact.isPickable = false;
+
+        const material = new StandardMaterial(`${this.modelName}_melee_impact_mat`, this.scene);
+        material.diffuseColor = new Color3(1, 0.45, 0.05);
+        material.emissiveColor = new Color3(1, 0.25, 0);
+        material.alpha = 0.85;
+        impact.material = material;
+
+        let frame = 0;
+        const maxFrames = 12;
+        const animate = () => {
+            frame++;
+            impact.scaling.scaleInPlace(1.08);
+            material.alpha = 0.85 * (1 - frame / maxFrames);
+
+            if (frame < maxFrames) {
+                window.requestAnimationFrame(animate);
+                return;
+            }
+
+            impact.dispose();
+            material.dispose();
+        };
+
+        animate();
+    }
+
+    public playRangedAttackEffect(targetPosition: Vector3, didHit: boolean): void {
+        if (!this.mesh) {
+            return;
+        }
+
+        const start = this.getProjectileAimPoint();
+        const end = targetPosition.clone();
+        const projectile = MeshBuilder.CreateSphere(
+            `${this.modelName}_projectile`,
+            { diameter: 0.28, segments: 12 },
+            this.scene
+        );
+        projectile.position.copyFrom(start);
+        projectile.isPickable = false;
+
+        const material = new StandardMaterial(`${this.modelName}_projectile_mat`, this.scene);
+        material.diffuseColor = didHit ? new Color3(0.2, 0.85, 1) : new Color3(1, 0.9, 0.15);
+        material.emissiveColor = material.diffuseColor;
+        projectile.material = material;
+
+        const durationMs = 220;
+        const startedAt = performance.now();
+        const animate = (now: number) => {
+            const progress = Math.min(1, (now - startedAt) / durationMs);
+            const easedProgress = 1 - Math.pow(1 - progress, 2);
+            Vector3.LerpToRef(start, end, easedProgress, projectile.position);
+
+            if (progress < 1) {
+                window.requestAnimationFrame(animate);
+                return;
+            }
+
+            projectile.dispose();
+            material.dispose();
+        };
+
+        window.requestAnimationFrame(animate);
+    }
+
+    public getProjectileAimPoint(): Vector3 {
+        return this.mesh!.position.add(new Vector3(0, 0.8, 0));
+    }
+
+    public flashDamageFeedback(): void {
+        const flashToken = ++this._damageFlashToken;
+        let blinkCount = 0;
+        const maxBlinkCount = 8;
+
+        const setOverlay = (isVisible: boolean) => {
+            this.visualMeshes.forEach((mesh) => {
+                mesh.renderOverlay = isVisible;
+                mesh.overlayColor = new Color3(1, 0.05, 0.02);
+                mesh.overlayAlpha = 0.75;
+            });
+        };
+
+        const blink = () => {
+            if (flashToken !== this._damageFlashToken || this.visualMeshes.length === 0) {
+                return;
+            }
+
+            blinkCount++;
+            setOverlay(blinkCount % 2 === 1);
+
+            if (blinkCount < maxBlinkCount) {
+                window.setTimeout(blink, 60);
+                return;
+            }
+
+            setOverlay(false);
+        };
+
+        blink();
     }
 
     protected getJumpTargetHeightOffset(): number {
@@ -251,7 +455,7 @@ export abstract class Entity
             const classLine = this.info.playerClass ? `Classe: ${this.info.playerClass}\n` : "";
             const statsText = new TextBlock(
                 "statsText",
-                `${classLine}HP: ${stats.hp}\nAttack: ${stats.attack}\nSpeed: ${stats.movementSpeed}\nAccuracy: ${Math.round(stats.accuracy * 100)}%`
+                `${classLine}HP: ${this.currentHp}/${this.maxHp}\nAttack: ${stats.attack}\nSpeed: ${stats.movementSpeed}\nAccuracy: ${Math.round(stats.accuracy * 100)}%`
             );
             statsText.color = "white";
             statsText.fontSize = 14;

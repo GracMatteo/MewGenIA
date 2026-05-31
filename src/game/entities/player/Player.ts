@@ -210,6 +210,12 @@ export class Player extends Entity
         this.capsuleAggregate.body.setLinearVelocity(new Vector3(0, 0, 0));
     }
 
+    protected override onDeath(): void
+    {
+        this.stopMovement();
+        this.isSelected = false;
+    }
+
     selected() 
     {
         this.mesh!.actionManager!.registerAction(

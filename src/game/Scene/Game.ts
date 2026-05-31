@@ -1,9 +1,11 @@
 import {
+    AbstractMesh,
     Color3,
     DirectionalLight,
     Engine,
     FreeCamera,
     HavokPlugin,
+    ImportMeshAsync,
     KeyboardEventTypes,
     Mesh,
     MeshBuilder,
@@ -18,7 +20,7 @@ import {
     Texture,
     Vector3
 } from "@babylonjs/core";
-import { AdvancedDynamicTexture } from "@babylonjs/gui";
+import { AdvancedDynamicTexture, Button, Control, Rectangle, StackPanel, TextBlock } from "@babylonjs/gui";
 import { Action, InputManager } from "../InputManager";
 import type { LevelDefinition, LevelId } from "../LevelTypes";
 import { LEVEL_IDS } from "../LevelTypes";
@@ -43,6 +45,9 @@ export class GameScene {
     private static readonly CAMERA_MAX_HORIZONTAL_DISTANCE = 45;
     private static readonly CAMERA_ZOOM_STEP = 2;
     private static readonly CAMERA_ORBIT_SPEED = 0.01;
+    private static readonly JUMP_COOLDOWN_SECONDS = 2.5;
+    private static readonly EXTRACTION_RADIUS = 4;
+    private static readonly EXTRACTION_HOLD_SECONDS = 5;
     private static readonly CAMERA_ELEVATION_RATIO =
         GameScene.ISOMETRIC_CAMERA_OFFSET.y /
         Math.hypot(GameScene.ISOMETRIC_CAMERA_OFFSET.x, GameScene.ISOMETRIC_CAMERA_OFFSET.z);
@@ -86,7 +91,17 @@ export class GameScene {
     private _activePathIndex = 0;
     private _objects: GameObject[] = [];
     private _jumpTargetingActive = false;
+    private _jumpCooldownRemaining = 0;
     private _jumpRadiusMesh: Mesh | null = null;
+    private _isGameOver = false;
+    private _hasWon = false;
+    private _gameOverPanel: Rectangle | null = null;
+    private _victoryPanel: Rectangle | null = null;
+    private _playerHealthText: TextBlock | null = null;
+    private _extractionText: TextBlock | null = null;
+    private _extractionPoint: Vector3 | null = null;
+    private _extractionMesh: Mesh | null = null;
+    private _extractionHoldSeconds = 0;
     //private _objects: Object[] = [];
     private _enemies: AISoldier[] = [];
     public readonly ready: Promise<void>;
@@ -162,8 +177,11 @@ export class GameScene {
     private async _initLevel(levelId: LevelId): Promise<void> {
         const levelMeshes = this._buildLevel(levelId);
 
-        this._setupNavMesh(levelMeshes);
+        this._setupNavMesh(await levelMeshes);
         await this._createPlayer();
+        this._createExtractionPoint(levelId);
+        this._createPlayerHealthHud();
+        this._createExtractionHud();
         await Promise.all([
             this._createGrenades(),
             this._createEnemy()
@@ -173,8 +191,13 @@ export class GameScene {
         //this._setupCrowd();
         this._setupPointerEvents();
         this.scene.onBeforeRenderObservable.add(() => this._updatePlayerNavigation());
+        this.scene.onBeforeRenderObservable.add(() => this._updateJumpCooldown());
         this.scene.onBeforeRenderObservable.add(() => this._updateJumpRadius());
         this.scene.onBeforeRenderObservable.add(() => this._updateEnemies());
+        this.scene.onBeforeRenderObservable.add(() => this._updateCombatState());
+        this.scene.onBeforeRenderObservable.add(() => this._updatePlayerHealthHud());
+        this.scene.onBeforeRenderObservable.add(() => this._updateExtractionState());
+        this.scene.onBeforeRenderObservable.add(() => this._updateExtractionHud());
         this.scene.onBeforeRenderObservable.add(() => this._updateCollectables());
         this.scene.onBeforeRenderObservable.add(() => this._updateCameraFollow());
     }
@@ -258,7 +281,12 @@ export class GameScene {
         });
 
         this._inputManager.onActionTriggered(Action.JUMP, () => {
-            if (!this.player?.isSelected) {
+            if (this._isGameOver || this._hasWon || !this.player?.isSelected || this.player.isDead) {
+                return;
+            }
+
+            if (!this._canPlayerJump()) {
+                this._setJumpTargeting(false);
                 return;
             }
 
@@ -417,10 +445,14 @@ export class GameScene {
         return Math.min(Math.max(value, min), max);
     }
 
-    private _buildLevel(levelId: LevelId): Mesh[] {
+    private async _buildLevel(levelId: LevelId): Promise<Mesh[]> {
         switch (levelId) {
             case LEVEL_IDS.LEVEL_1:
-                return this._buildLevel1();
+                return await this._buildLevel1();
+            case LEVEL_IDS.LEVEL_2:
+                return this._buildLevel2();
+            case LEVEL_IDS.LEVEL_3:
+                return this._buildLevel3();
             case LEVEL_IDS.TESTING_GROUND:
                 return this._buildTestingGround();
             default:
@@ -428,16 +460,50 @@ export class GameScene {
         }
     }
 
-    private _buildLevel1(): Mesh[] {
+    private async _buildLevel1(): Promise<Mesh[]> 
+    {
+        const result = await ImportMeshAsync(`/models/apartment1.glb`, this.scene);
+        result.meshes.forEach((mesh) => {
+            mesh.receiveShadows = true;
+        });
+        const glbRoot = result.meshes[0];
+        glbRoot.scaling = new Vector3(100, 100, 100);
+        glbRoot.position = new Vector3(0, -30, 0);
+        
+        const glbMeshes = result.meshes as Mesh[];
+
         const ground = this._createGround("level1_ground", 200, 200);
 
-        const cube = MeshBuilder.CreateBox("level1_obstacle_cube", { size: 4 }, this.scene);
-        cube.position = new Vector3(15, 2, 0);
+
+        const building1 = MeshBuilder.CreateBox("level1_building_1", { width: 12, height: 8, depth: 12 }, this.scene);
+        building1.position = new Vector3(-12, 4, -12);
+
+        const building2 = MeshBuilder.CreateBox("level1_building_2", { width: 12, height: 8, depth: 12 }, this.scene);
+        building2.position = new Vector3(12, 4, 12);
 
         const wall = MeshBuilder.CreateBox("level1_wall", { width: 4, height: 4, depth: 18 }, this.scene);
         wall.position = new Vector3(-15, 2, 12);
 
-        return [ground, cube, wall];
+        return [ground, building1, building2, ...glbMeshes];
+    }
+
+    private _buildLevel2(): Mesh[] 
+    {
+        const ground = this._createGround("level2_ground", 200, 200);
+        const wallA = MeshBuilder.CreateBox("level2_wall_a", { width: 4, height: 4, depth: 18 }, this.scene);
+        wallA.position = new Vector3(0, 2, 12);
+        const wallB = MeshBuilder.CreateBox("level2_wall_b", { width: 4, height: 4, depth: 18 }, this.scene);
+        wallB.position = new Vector3(0, 2, -12);
+
+        return [ground, wallA, wallB];
+    }
+
+    private _buildLevel3(): Mesh[] {
+        const ground = this._createGround("level3_ground", 200, 200);
+        const obstacle = MeshBuilder.CreateBox("level3_obstacle", { size: 4 }, this.scene);
+        obstacle.position = new Vector3(0, 2, 0);
+
+        return [ground, obstacle];
     }
 
     private _buildTestingGround(): Mesh[] {
@@ -648,7 +714,7 @@ export class GameScene {
 
     private _setupPointerEvents(): void {
         this.scene.onPointerObservable.add((pointerInfo) => {
-            if (pointerInfo.type !== PointerEventTypes.POINTERDOWN || pointerInfo.event.button !== 0) {
+            if (this._isGameOver || this._hasWon || pointerInfo.type !== PointerEventTypes.POINTERDOWN || pointerInfo.event.button !== 0) {
                 return;
             }
 
@@ -659,6 +725,12 @@ export class GameScene {
 
             if (this._jumpTargetingActive) {
                 this._tryPlayerJump(pickInfo.pickedPoint!);
+                return;
+            }
+
+            const pickedEnemy = this._getEnemyFromPickedMesh(pickInfo.pickedMesh);
+            if (pickedEnemy) {
+                this._tryPlayerAttack(pickedEnemy, pickInfo.pickedPoint ?? pickedEnemy.mesh?.position);
                 return;
             }
 
@@ -686,6 +758,10 @@ export class GameScene {
     }
 
     private _setJumpTargeting(isActive: boolean): void {
+        if (isActive && !this._canPlayerJump()) {
+            isActive = false;
+        }
+
         this._jumpTargetingActive = isActive;
 
         if (!isActive) {
@@ -724,6 +800,19 @@ export class GameScene {
         this._jumpRadiusMesh = radiusMesh;
     }
 
+    private _canPlayerJump(): boolean {
+        return this._jumpCooldownRemaining <= 0;
+    }
+
+    private _updateJumpCooldown(): void {
+        if (this._jumpCooldownRemaining <= 0) {
+            return;
+        }
+
+        const deltaSeconds = this.scene.getEngine().getDeltaTime() / 1000;
+        this._jumpCooldownRemaining = Math.max(0, this._jumpCooldownRemaining - deltaSeconds);
+    }
+
     private _clearJumpRadius(): void {
         if (this._jumpRadiusMesh?.material) {
             this._jumpRadiusMesh.material.dispose();
@@ -734,6 +823,12 @@ export class GameScene {
     }
 
     private _tryPlayerJump(destination: Vector3): void {
+        if (!this._canPlayerJump()) {
+            this._createClickFeedback(destination, new Color3(1, 0.2, 0.15));
+            this._setJumpTargeting(false);
+            return;
+        }
+
         const result = this.player.performBasicAction(BasicActionId.JUMP, {
             targetPoint: destination
         });
@@ -744,8 +839,46 @@ export class GameScene {
         }
 
         this._clearPath();
+        this._jumpCooldownRemaining = GameScene.JUMP_COOLDOWN_SECONDS;
         this._createClickFeedback(destination, new Color3(0.2, 0.85, 1));
         this._setJumpTargeting(false);
+    }
+
+    private _getEnemyFromPickedMesh(pickedMesh?: AbstractMesh | null): AISoldier | null {
+        if (!pickedMesh) {
+            return null;
+        }
+
+        return this._enemies.find((enemy) => !enemy.isDead && enemy.ownsMesh(pickedMesh)) ?? null;
+    }
+
+    private _tryPlayerAttack(enemy: AISoldier, feedbackPosition?: Vector3): void {
+        if (this._isGameOver || this._hasWon || !this.player?.mesh || this.player.isDead || !enemy.mesh) {
+            return;
+        }
+
+        const hitPosition = feedbackPosition?.clone() ?? enemy.mesh.position.clone();
+        this._clearPath();
+        this.player.stopMovement();
+
+        const actionId = this.player.canPerformBasicAction(BasicActionId.MELEE_ATTACK, { target: enemy })
+            ? BasicActionId.MELEE_ATTACK
+            : BasicActionId.RANGED_ATTACK;
+
+        const result = this.player.performBasicAction(actionId, { target: enemy });
+        if (!result.success) {
+            this._createClickFeedback(hitPosition, new Color3(1, 0.2, 0.15));
+            return;
+        }
+
+        const feedbackColor = enemy.isDead
+            ? new Color3(0.2, 0.85, 0.25)
+            : result.damage && result.damage > 0
+                ? new Color3(1, 0.55, 0.15)
+                : new Color3(1, 0.9, 0.2);
+
+        this._createClickFeedback(hitPosition, feedbackColor);
+        this._removeDeadEnemies();
     }
 
     private _segmentPath(pathPoints: Vector3[]): Vector3[] {
@@ -829,6 +962,292 @@ export class GameScene {
         animate();
     }
 
+    private _createExtractionPoint(levelId: LevelId): void {
+        this._extractionPoint = this._getExtractionPointForLevel(levelId);
+
+        const extractionMesh = MeshBuilder.CreateCylinder(
+            "extractionZone",
+            {
+                diameter: GameScene.EXTRACTION_RADIUS * 2,
+                height: 0.08,
+                tessellation: 96
+            },
+            this.scene
+        );
+        extractionMesh.position.copyFrom(this._extractionPoint);
+        extractionMesh.position.y = 0.06;
+        extractionMesh.isPickable = false;
+
+        const material = new StandardMaterial("extractionZoneMat", this.scene);
+        material.diffuseColor = new Color3(0.15, 0.95, 0.45);
+        material.emissiveColor = new Color3(0.02, 0.35, 0.12);
+        material.alpha = 0.35;
+        material.backFaceCulling = false;
+        extractionMesh.material = material;
+
+        const ring = MeshBuilder.CreateTorus(
+            "extractionZoneRing",
+            {
+                diameter: GameScene.EXTRACTION_RADIUS * 2,
+                thickness: 0.12,
+                tessellation: 96
+            },
+            this.scene
+        );
+        ring.position.copyFrom(extractionMesh.position);
+        ring.position.y += 0.08;
+        ring.isPickable = false;
+        ring.material = material;
+
+        this._extractionMesh = extractionMesh;
+    }
+
+    private _getExtractionPointForLevel(levelId: LevelId): Vector3 {
+        switch (levelId) {
+            case LEVEL_IDS.LEVEL_1:
+                return new Vector3(28, 0.06, 28);
+            case LEVEL_IDS.LEVEL_2:
+                return new Vector3(0, 0.06, -34);
+            case LEVEL_IDS.LEVEL_3:
+                return new Vector3(24, 0.06, 24);
+            case LEVEL_IDS.TESTING_GROUND:
+                return new Vector3(32, 0.06, 32);
+            default:
+                return new Vector3(28, 0.06, 28);
+        }
+    }
+
+    private _createExtractionHud(): void {
+        const panel = new Rectangle("extractionHud");
+        panel.width = "280px";
+        panel.height = "48px";
+        panel.thickness = 1;
+        panel.cornerRadius = 6;
+        panel.color = "#ffffff";
+        panel.background = "rgba(10, 10, 10, 0.65)";
+        panel.horizontalAlignment = Control.HORIZONTAL_ALIGNMENT_CENTER;
+        panel.verticalAlignment = Control.VERTICAL_ALIGNMENT_TOP;
+        panel.top = "18px";
+
+        this._extractionText = new TextBlock("extractionText", "");
+        this._extractionText.color = "white";
+        this._extractionText.fontSize = 16;
+        this._extractionText.fontWeight = "bold";
+        panel.addControl(this._extractionText);
+
+        this._ui.addControl(panel);
+        this._updateExtractionHud();
+    }
+
+    private _createPlayerHealthHud(): void {
+        const panel = new Rectangle("playerHealthHud");
+        panel.width = "180px";
+        panel.height = "48px";
+        panel.thickness = 1;
+        panel.cornerRadius = 6;
+        panel.color = "#ffffff";
+        panel.background = "rgba(10, 10, 10, 0.65)";
+        panel.horizontalAlignment = Control.HORIZONTAL_ALIGNMENT_LEFT;
+        panel.verticalAlignment = Control.VERTICAL_ALIGNMENT_TOP;
+        panel.left = "18px";
+        panel.top = "18px";
+
+        this._playerHealthText = new TextBlock("playerHealthText", "");
+        this._playerHealthText.color = "white";
+        this._playerHealthText.fontSize = 18;
+        this._playerHealthText.fontWeight = "bold";
+        panel.addControl(this._playerHealthText);
+
+        this._ui.addControl(panel);
+        this._updatePlayerHealthHud();
+    }
+
+    private _updatePlayerHealthHud(): void {
+        if (!this._playerHealthText || !this.player) {
+            return;
+        }
+
+        this._playerHealthText.text = `HP: ${this.player.currentHp}/${this.player.maxHp}`;
+        this._playerHealthText.color = this.player.currentHp <= this.player.maxHp * 0.3 ? "#ff6b5f" : "white";
+    }
+
+    private _updateExtractionState(): void {
+        if (
+            this._isGameOver ||
+            this._hasWon ||
+            !this.player?.mesh ||
+            this.player.isDead ||
+            !this._extractionPoint
+        ) {
+            return;
+        }
+
+        const deltaSeconds = this.scene.getEngine().getDeltaTime() / 1000;
+        const distanceToExtraction = Vector3.Distance(
+            new Vector3(this.player.mesh.position.x, 0, this.player.mesh.position.z),
+            new Vector3(this._extractionPoint.x, 0, this._extractionPoint.z)
+        );
+        const isInsideExtraction = distanceToExtraction <= GameScene.EXTRACTION_RADIUS;
+
+        this._extractionHoldSeconds = isInsideExtraction
+            ? Math.min(GameScene.EXTRACTION_HOLD_SECONDS, this._extractionHoldSeconds + deltaSeconds)
+            : 0;
+
+        if (this._extractionMesh) {
+            const pulse = 1 + Math.sin(performance.now() * 0.006) * 0.04;
+            this._extractionMesh.scaling.set(pulse, 1, pulse);
+        }
+
+        if (this._extractionHoldSeconds >= GameScene.EXTRACTION_HOLD_SECONDS) {
+            this._completeExtraction();
+        }
+    }
+
+    private _updateExtractionHud(): void {
+        if (!this._extractionText) {
+            return;
+        }
+
+        if (this._hasWon) {
+            this._extractionText.text = "Extraction reussie";
+            this._extractionText.color = "#64ff8a";
+            return;
+        }
+
+        if (this._isGameOver || this.player?.isDead) {
+            this._extractionText.text = "";
+            return;
+        }
+
+        const remainingSeconds = Math.max(0, GameScene.EXTRACTION_HOLD_SECONDS - this._extractionHoldSeconds);
+        this._extractionText.text = this._extractionHoldSeconds > 0
+            ? `Extraction: ${remainingSeconds.toFixed(1)}s`
+            : "Rejoindre la zone d'extraction";
+        this._extractionText.color = this._extractionHoldSeconds > 0 ? "#64ff8a" : "white";
+    }
+
+    private _completeExtraction(): void {
+        if (this._hasWon) {
+            return;
+        }
+
+        this._hasWon = true;
+        this._clearPath();
+        this._setJumpTargeting(false);
+        this.player.stopMovement();
+        this._enemies.forEach((enemy) => enemy.stopMovement());
+        this._showVictoryScreen();
+    }
+
+    private _removeDeadEnemies(): void {
+        this._enemies = this._enemies.filter((enemy) => !enemy.isDead);
+    }
+
+    private _updateCombatState(): void {
+        this._removeDeadEnemies();
+
+        if (this._isGameOver || this._hasWon || !this.player?.isDead) {
+            return;
+        }
+
+        this._isGameOver = true;
+        this._clearPath();
+        this._setJumpTargeting(false);
+        this.player.stopMovement();
+        this._enemies.forEach((enemy) => enemy.stopMovement());
+        this._showGameOverScreen();
+    }
+
+    private _showVictoryScreen(): void {
+        if (this._victoryPanel) {
+            return;
+        }
+
+        const overlay = new Rectangle("victoryOverlay");
+        overlay.width = "100%";
+        overlay.height = "100%";
+        overlay.thickness = 0;
+        overlay.background = "rgba(0, 0, 0, 0.72)";
+
+        const content = new StackPanel("victoryContent");
+        content.width = "380px";
+        content.height = "230px";
+        content.spacing = 18;
+        content.horizontalAlignment = Control.HORIZONTAL_ALIGNMENT_CENTER;
+        content.verticalAlignment = Control.VERTICAL_ALIGNMENT_CENTER;
+
+        const title = new TextBlock("victoryTitle", "VICTOIRE");
+        title.height = "70px";
+        title.color = "#64ff8a";
+        title.fontSize = 48;
+        title.fontWeight = "bold";
+        content.addControl(title);
+
+        const subtitle = new TextBlock("victorySubtitle", "Extraction terminee");
+        subtitle.height = "34px";
+        subtitle.color = "white";
+        subtitle.fontSize = 20;
+        content.addControl(subtitle);
+
+        const menuButton = Button.CreateSimpleButton("victoryMenuButton", "Retour menu");
+        menuButton.width = "190px";
+        menuButton.height = "50px";
+        menuButton.color = "white";
+        menuButton.background = "#256d3a";
+        menuButton.cornerRadius = 6;
+        menuButton.onPointerUpObservable.add(() => this._onReturnToMenu());
+        content.addControl(menuButton);
+
+        overlay.addControl(content);
+        this._ui.addControl(overlay);
+        this._victoryPanel = overlay;
+    }
+
+    private _showGameOverScreen(): void {
+        if (this._gameOverPanel) {
+            return;
+        }
+
+        const overlay = new Rectangle("gameOverOverlay");
+        overlay.width = "100%";
+        overlay.height = "100%";
+        overlay.thickness = 0;
+        overlay.background = "rgba(0, 0, 0, 0.78)";
+
+        const content = new StackPanel("gameOverContent");
+        content.width = "360px";
+        content.height = "230px";
+        content.spacing = 18;
+        content.horizontalAlignment = Control.HORIZONTAL_ALIGNMENT_CENTER;
+        content.verticalAlignment = Control.VERTICAL_ALIGNMENT_CENTER;
+
+        const title = new TextBlock("gameOverTitle", "GAME OVER");
+        title.height = "70px";
+        title.color = "#ff6b5f";
+        title.fontSize = 46;
+        title.fontWeight = "bold";
+        content.addControl(title);
+
+        const subtitle = new TextBlock("gameOverSubtitle", "Vous etes mort");
+        subtitle.height = "34px";
+        subtitle.color = "white";
+        subtitle.fontSize = 20;
+        content.addControl(subtitle);
+
+        const menuButton = Button.CreateSimpleButton("gameOverMenuButton", "Retour menu");
+        menuButton.width = "190px";
+        menuButton.height = "50px";
+        menuButton.color = "white";
+        menuButton.background = "#343a40";
+        menuButton.cornerRadius = 6;
+        menuButton.onPointerUpObservable.add(() => this._onReturnToMenu());
+        content.addControl(menuButton);
+
+        overlay.addControl(content);
+        this._ui.addControl(overlay);
+        this._gameOverPanel = overlay;
+    }
+
     private _clearPath(): void {
         this._activePath = [];
         this._activePathIndex = 0;
@@ -837,7 +1256,7 @@ export class GameScene {
     }
 
     private _updatePlayerNavigation(): void {
-        if (!this.player?.mesh || this._activePathIndex >= this._activePath.length) {
+        if (this._isGameOver || this._hasWon || !this.player?.mesh || this.player.isDead || this._activePathIndex >= this._activePath.length) {
             return;
         }
 
@@ -887,12 +1306,17 @@ export class GameScene {
     }
 
     private _updateEnemies(): void {
-        if (!this.player?.mesh) {
+        if (this._isGameOver || this._hasWon || !this.player?.mesh || this.player.isDead) {
+            this._enemies.forEach((enemy) => enemy.stopMovement());
             return;
         }
 
         const deltaSeconds = this.scene.getEngine().getDeltaTime() / 1000;
-        this._enemies.forEach((enemy) => enemy.update(this.player, deltaSeconds));
+        this._enemies.forEach((enemy) => {
+            if (!enemy.isDead) {
+                enemy.update(this.player, deltaSeconds);
+            }
+        });
     }
 
     private _updateCollectables(): void {

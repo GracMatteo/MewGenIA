@@ -13,6 +13,16 @@ const LEVEL_CATALOG: LevelDefinition[] = [
         description: "Main playable level"
     },
     {
+        id: LEVEL_IDS.LEVEL_2,
+        label: "LvL 2",
+        description: "Second playable level"
+    },
+    {
+        id: LEVEL_IDS.LEVEL_3,
+        label: "LvL 3",
+        description: "Third playable level"
+    },
+    {
         id: LEVEL_IDS.TESTING_GROUND,
         label: "TESTING GROUND",
         description: "Sandbox for testing mechanics"
