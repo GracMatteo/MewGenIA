@@ -6,6 +6,7 @@ export const EnemyActionId = {
     CHASE_TARGET: "CHASE_TARGET",
     FLEE_TARGET: "FLEE_TARGET",
     IDLE: "IDLE",
+    MAINTAIN_TARGET_DISTANCE: "MAINTAIN_TARGET_DISTANCE",
     MELEE_ATTACK: "MELEE_ATTACK",
     RANGED_ATTACK: "RANGED_ATTACK",
     PATROL: "PATROL"
@@ -40,6 +41,17 @@ function getPlanarDistance(a: Vector3, b: Vector3): number {
 
 function hasReadyMeshes(context: EnemyActionContext): boolean {
     return Boolean(context.enemy.mesh && context.target.mesh);
+}
+
+function getDirectionAwayFromTarget(enemyPosition: Vector3, targetPosition: Vector3): Vector3 {
+    const direction = enemyPosition.subtract(targetPosition);
+    direction.y = 0;
+
+    if (direction.lengthSquared() <= 0.001) {
+        direction.copyFromFloats(1, 0, 0);
+    }
+
+    return direction.normalize();
 }
 
 export class ChaseTargetAction implements EnemyAction {
@@ -147,15 +159,51 @@ export class FleeTargetAction implements EnemyAction {
     run(context: EnemyActionContext): void {
         const enemyPosition = context.enemy.mesh!.position;
         const targetPosition = context.target.mesh!.position;
-        const fleeDirection = enemyPosition.subtract(targetPosition);
-        fleeDirection.y = 0;
+        const fleeDirection = getDirectionAwayFromTarget(enemyPosition, targetPosition);
+        context.enemy.moveToward(enemyPosition.add(fleeDirection.scale(this._fleeDistance)), this._speedMultiplier);
+    }
+}
 
-        if (fleeDirection.lengthSquared() <= 0.001) {
-            fleeDirection.copyFromFloats(1, 0, 0);
+export class MaintainTargetDistanceAction implements EnemyAction {
+    public readonly id = EnemyActionId.MAINTAIN_TARGET_DISTANCE;
+    private readonly _minDistance: number;
+    private readonly _maxDistance: number;
+    private readonly _detectionDistance: number;
+    private readonly _speedMultiplier: number;
+
+    constructor(
+        minDistance: number = 7,
+        maxDistance: number = 16,
+        detectionDistance: number = 35,
+        speedMultiplier: number = 0.9
+    ) {
+        this._minDistance = minDistance;
+        this._maxDistance = maxDistance;
+        this._detectionDistance = detectionDistance;
+        this._speedMultiplier = speedMultiplier;
+    }
+
+    canRun(context: EnemyActionContext): boolean {
+        if (!hasReadyMeshes(context)) {
+            return false;
         }
 
-        fleeDirection.normalize();
-        context.enemy.moveToward(enemyPosition.add(fleeDirection.scale(this._fleeDistance)), this._speedMultiplier);
+        const distance = getPlanarDistance(context.enemy.mesh!.position, context.target.mesh!.position);
+        return distance <= this._detectionDistance && (distance < this._minDistance || distance > this._maxDistance);
+    }
+
+    run(context: EnemyActionContext): void {
+        const enemyPosition = context.enemy.mesh!.position;
+        const targetPosition = context.target.mesh!.position;
+        const distance = getPlanarDistance(enemyPosition, targetPosition);
+
+        if (distance < this._minDistance) {
+            const retreatDirection = getDirectionAwayFromTarget(enemyPosition, targetPosition);
+            context.enemy.moveToward(enemyPosition.add(retreatDirection.scale(this._minDistance)), this._speedMultiplier);
+            return;
+        }
+
+        context.enemy.moveToward(targetPosition, this._speedMultiplier);
     }
 }
 
